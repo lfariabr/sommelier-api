@@ -15,6 +15,6 @@ def render() -> None:
         "and a **high/low grade** (classification). Adjust the chemistry below."
     )
     feats = wine_input_form()
-    if st.button("Taste it", type="primary", use_container_width=True):
+    if st.button("Taste it", type="primary", width="stretch"):
         result = PredictionService.predict(tuple(sorted(feats.items())))
         render_results(result)
