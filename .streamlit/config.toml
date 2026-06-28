@@ -8,7 +8,6 @@ base = "light"
 
 [server]
 headless = true
-enableCORS = false
 enableXsrfProtection = true
 
 [browser]

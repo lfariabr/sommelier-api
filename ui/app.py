@@ -17,9 +17,9 @@ st.set_page_config(page_title="Sommelier", page_icon="🍷", layout="centered")
 nav = st.navigation(
     {
         "Sommelier": [
-            st.Page(taste.render, title="Taste", icon="🍷", default=True),
-            st.Page(model_info.render, title="Model card", icon="📊"),
-            st.Page(about.render, title="About", icon="ℹ️"),
+            st.Page(taste.render, title="Taste", icon="🍷", url_path="taste", default=True),
+            st.Page(model_info.render, title="Model card", icon="📊", url_path="model-card"),
+            st.Page(about.render, title="About", icon="ℹ️", url_path="about"),
         ]
     }
 )
