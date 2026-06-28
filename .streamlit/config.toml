@@ -1,0 +1,15 @@
+[theme]
+primaryColor = "#7b2d3b"              # burgundy
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f6f1ee"  # warm off-white panels
+textColor = "#1f2937"
+font = "sans serif"
+base = "light"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false

@@ -1,0 +1,9 @@
+# FastAPI service dependencies (Render).  pip install -r requirements-api.txt
+-c constraints.txt
+fastapi
+uvicorn[standard]
+pydantic
+scikit-learn
+pandas
+numpy
+joblib

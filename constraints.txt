@@ -1,0 +1,15 @@
+# Canonical version pins — referenced by every requirements file via `-c constraints.txt`,
+# and matched on Render (PYTHON_VERSION=3.11.9) and Streamlit Cloud (Python 3.11) so the
+# joblib artifacts trained locally load and predict identically in production.
+scikit-learn==1.9.0
+numpy==2.4.6
+scipy==1.17.1
+joblib==1.5.3
+pandas==3.0.3
+pydantic==2.13.4
+fastapi==0.138.1
+uvicorn==0.49.0
+starlette==1.3.1
+streamlit==1.58.0
+plotly==6.8.0
+httpx==0.28.1

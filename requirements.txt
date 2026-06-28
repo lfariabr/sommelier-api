@@ -1,0 +1,11 @@
+# Streamlit Community Cloud installs from this file (repo root).
+# The UI runs LOCAL inference by default, so it needs the full scikit-learn stack
+# (it imports ml.predict and runs the joblib models in-process).
+-c constraints.txt
+streamlit
+plotly
+scikit-learn
+pandas
+numpy
+joblib
+httpx
