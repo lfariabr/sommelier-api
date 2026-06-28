@@ -33,6 +33,20 @@ engineered `wine_type` flag (red=1, white=0) so a single model can see both colo
 Because both are tree-based, there's **no feature scaling at inference** — one of the
 small things that makes serving them clean.
 
+Here's the whole path, from two CSVs to two saved models:
+
+```mermaid
+flowchart LR
+    R[winequality-red.csv] --> M[concat + engineer wine_type<br/>red=1, white=0]
+    W[winequality-white.csv] --> M
+    M --> X[12-feature matrix<br/>6,497 wines]
+    X --> S[train / test split<br/>80/20, seed 42]
+    S --> RF[RandomForestRegressor<br/>quality score 0-10]
+    S --> DT[DecisionTreeClassifier<br/>high vs low, threshold 6]
+    RF --> RJ[(regressor.joblib)]
+    DT --> CJ[(classifier.joblib)]
+```
+
 Here's the part most posts skip: **the regressor's R² is about 0.50.** It explains
 roughly half the variance in the scores. That's not a bug to hide — it's the nature of
 the problem. Wine quality is a *subjective human judgement*; there's a real ceiling on
@@ -55,6 +69,21 @@ ml/
   features.py   # build_features() + FEATURE_ORDER — the single source of truth
   train.py      # deterministic re-train from the raw CSVs -> joblib artifacts
   predict.py    # load_artifacts(), predict_score(), predict_grade()
+```
+
+Here's how a prediction actually flows — two adapters, one core:
+
+```mermaid
+flowchart TD
+    U[wine chemistry input] --> ST[Streamlit app]
+    U --> API[FastAPI on Render<br/>/predict and /docs]
+    ST -->|local by default| CORE[ml/predict.py<br/>shared core]
+    ST -.->|api mode + auto-fallback| API
+    API --> CORE
+    CORE --> RJ[(regressor.joblib)]
+    CORE --> CJ[(classifier.joblib)]
+    RJ --> OUT[score + grade]
+    CJ --> OUT
 ```
 
 Everything else is a thin adapter over `ml/`:
@@ -112,3 +141,13 @@ obvious next steps:
 The thread through that table: **more/better data and explainability beat fancier
 infrastructure.** The point of v1 wasn't the perfect model — it was the full path from a
 notebook to a deployed, typed, tested service. The half you can bottle.
+
+## References & code
+
+- **Dataset** — P. Cortez, A. Cerdeira, F. Almeida, T. Matos, J. Reis. *Modeling wine
+  preferences by data mining from physicochemical properties.* Decision Support Systems
+  47(4), 547–553 (2009). [UCI Wine Quality](https://archive.ics.uci.edu/dataset/186/wine+quality).
+- **Code** — [github.com/lfariabr/sommelier-api](https://github.com/lfariabr/sommelier-api):
+  the full serving layer, re-implemented from the public CSVs.
+- The two models originate in my Master of Software Engineering (AI) coursework
+  (MLN601 — regression + classification).
