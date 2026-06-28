@@ -5,9 +5,8 @@
 > good?** (classification) — served by a FastAPI backend and a Streamlit tasting-room UI
 > over one shared, framework-agnostic ML core.
 
-> 🚧 **Private / work-in-progress.** Public launch is gated until after 2026-07-26
-> (the classifier reproduces an active graded assessment; see *Provenance*). Built and
-> verified locally first; deploy + publish happen post-gate.
+> 🚧 **Work in progress.** The ML core reproduces both models; the FastAPI and
+> Streamlit surfaces are landing next. Live demo + API links go here once deployed.
 
 ## What it is
 
@@ -79,10 +78,10 @@ make ui          # Streamlit tasting-room at http://localhost:8501
 ## Provenance
 
 The two models originate in the author's Master of Software Engineering (AI) coursework
-(MLN601 — regression A1 + classification A2). This repository is an independent
-**serving layer**: it re-implements the pipeline cleanly from the public UCI CSVs in
-`ml/train.py` and contains **no assessment notebooks, reports, or identifying data**.
-Public release is deliberately held until after the A2 submission date.
+(MLN601 — regression + classification). This repository is an independent **serving
+layer**: it re-implements the pipeline cleanly from the public UCI CSVs in `ml/train.py`
+and contains **no assessment notebooks, reports, or identifying data** — just the public
+dataset and a fresh, deterministic training script.
 
 ## License
 
