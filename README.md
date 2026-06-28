@@ -5,8 +5,8 @@
 > good?** (classification) — served by a FastAPI backend and a Streamlit tasting-room UI
 > over one shared, framework-agnostic ML core.
 
-> 🚧 **Work in progress.** The ML core reproduces both models; the FastAPI and
-> Streamlit surfaces are landing next. Live demo + API links go here once deployed.
+> ▶️ **Live demo:** **[sommelier-api.streamlit.app](https://sommelier-api.streamlit.app/)** —
+> paste a wine's chemistry, get both verdicts. *(FastAPI service + Swagger deploy coming next.)*
 
 ## What it is
 

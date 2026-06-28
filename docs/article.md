@@ -83,7 +83,7 @@ I trained on my laptop is bit-for-bit the joblib that serves in production. No
 
 ## Try it
 
-- 🍷 **App:** `<streamlit-link>` — paste a wine's chemistry, get both verdicts.
+- 🍷 **App:** **[sommelier-api.streamlit.app](https://sommelier-api.streamlit.app/)** — paste a wine's chemistry, get both verdicts.
 - 📜 **API docs:** `<render-link>/docs` — the same models over REST.
 - 💻 **Code:** [github.com/lfariabr/sommelier-api](https://github.com/lfariabr/sommelier-api)
 
