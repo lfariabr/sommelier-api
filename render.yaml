@@ -1,0 +1,14 @@
+# Render blueprint for the FastAPI service. Connect the repo on render.com and it
+# reads this automatically. Free tier sleeps after ~15 min idle (~50s cold start) —
+# the Streamlit UI defaults to local inference so that never affects the demo.
+services:
+  - type: web
+    name: sommelier-api
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements-api.txt"
+    startCommand: "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

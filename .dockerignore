@@ -1,0 +1,12 @@
+venv/
+tests/
+ui/
+docs/
+data/
+.git/
+.github/
+.streamlit/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
