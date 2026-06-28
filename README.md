@@ -5,8 +5,8 @@
 > good?** (classification) — served by a FastAPI backend and a Streamlit tasting-room UI
 > over one shared, framework-agnostic ML core.
 
-> ▶️ **Live demo:** **[sommelier-api.streamlit.app](https://sommelier-api.streamlit.app/)** —
-> paste a wine's chemistry, get both verdicts. *(FastAPI service + Swagger deploy coming next.)*
+> ▶️ **Live:** **[Streamlit app](https://sommelier-api.streamlit.app/)** · **[FastAPI Swagger](https://sommelier-api-yd1m.onrender.com/docs)**
+> — paste a wine's chemistry, get both verdicts. *(Render free tier sleeps when idle; first call may take ~50s.)*
 
 ## What it is
 
