@@ -1,6 +1,6 @@
 # I gave the same 6,497 wines to two models and asked them different questions
 
-> Draft for dev.to / luisfaria.dev. Live links get filled in after deploy.
+> Draft for dev.to / luisfaria.dev. Suggested tags (dev.to allows 4): `machinelearning` · `python` · `datascience` · `showdev`.
 
 Most ML tutorials stop at a notebook with a green `R²` cell and a shrug. I wanted to
 go one step further: take two models I'd actually trained, and turn them into something
@@ -59,10 +59,13 @@ ml/
 
 Everything else is a thin adapter over `ml/`:
 
-- **FastAPI** exposes the models over a typed REST API with auto-generated Swagger
-  docs. Pydantic validates every input (and returns a clean `422` when your wine has
-  negative alcohol). `GET /model/info` returns the *real* metrics straight from the
-  training run — no hard-coded numbers.
+- **FastAPI** exposes the models over a typed REST API, **deployed on [Render](https://render.com)**
+  with **interactive Swagger docs at `/docs`** you can actually poke — fill in a wine, hit
+  *Execute*, watch the prediction come back. Pydantic validates every input (and returns a
+  clean `422` when your wine has negative alcohol). `GET /model/info` returns the *real*
+  metrics straight from the training run — no hard-coded numbers. It's on the free tier, so
+  the first call after a quiet spell takes ~50s to wake the service — an honest tradeoff
+  for $0 hosting, and exactly why the Streamlit app doesn't depend on it (below).
 
 ```python
 @app.post("/predict")
@@ -87,9 +90,25 @@ I trained on my laptop is bit-for-bit the joblib that serves in production. No
 - 📜 **API docs:** **[live Swagger](https://sommelier-api-yd1m.onrender.com/docs)** — the same models over REST.
 - 💻 **Code:** [github.com/lfariabr/sommelier-api](https://github.com/lfariabr/sommelier-api)
 
-## What's next
+## What's next — and what's *not* worth it
 
-A few things I'd add: a gradient-boosting comparator for the score, SHAP explanations so
-the app can say *why* a wine scored low, and probability calibration on the classifier.
-But the point of v1 wasn't the perfect model — it was the full path from a notebook to a
-deployed, typed, tested service. The half you can bottle.
+v1 was about the full path from notebook to deployed service, not a perfect model. From
+here there's a real roadmap — but a good roadmap also says *no*. Here's how I'd weigh the
+obvious next steps:
+
+| Next step | Worth it? | Why |
+|---|---|---|
+| **Log predictions to a DB** (SQLite → Postgres) | ✅ soon | Cheapest high-value add — a usage log gives analytics, drift monitoring, and a real-world dataset. SQLite is plenty to start. |
+| **More / better data** (other wine datasets & APIs) | ✅ highest leverage | The R² ceiling here is *data*-bound, not model-bound. More wines and richer features (price, region, vintage) beat any fancier algorithm. |
+| **SHAP explanations** | ✅ yes | Let the app say *why* a wine scored low — turns the black box into a teaching tool for a few lines of code. |
+| **Gradient boosting + probability calibration** | ✅ quick win | XGBoost/LightGBM usually edge out a random forest on tabular data; calibration makes a "73%" actually mean 73%. |
+| **Rate limiting** (e.g. slowapi) | ⚠️ once it has traffic | A public API needs it eventually to curb abuse and protect the free tier — but premature on day one. |
+| **Redis** | ⚠️ pairs with the above | Earns its keep only behind rate-limit counters or a cache shared across instances. Overkill for a single free dyno today. |
+| **Deep learning** | ⚠️ for learning, not accuracy | On ~6,500 rows of tabular data, trees almost always beat neural nets. A great DL *exercise* — not a way to move the metric. |
+| **Auth + freemium** (5 free, then sign in) | ⚠️ only if productizing | Adds friction to a demo whose whole point is "try it instantly". Makes sense only if this becomes a real product. |
+| **More engineered features** | ⚠️ limited upside | The 11 chemical inputs are largely tapped out; interaction terms are cheap to try but won't break the data ceiling. |
+| **Email (Resend)** | ❌ not yet | No natural trigger — no accounts, no reports to send. A tool looking for a problem until a feature needs one. |
+
+The thread through that table: **more/better data and explainability beat fancier
+infrastructure.** The point of v1 wasn't the perfect model — it was the full path from a
+notebook to a deployed, typed, tested service. The half you can bottle.
