@@ -1,0 +1,94 @@
+{
+  "feature_order": [
+    "fixed acidity",
+    "volatile acidity",
+    "citric acid",
+    "residual sugar",
+    "chlorides",
+    "free sulfur dioxide",
+    "total sulfur dioxide",
+    "density",
+    "pH",
+    "sulphates",
+    "alcohol",
+    "wine_type"
+  ],
+  "wine_type_map": {
+    "red": 1,
+    "white": 0
+  },
+  "ranges": {
+    "fixed acidity": {
+      "min": 3.8,
+      "max": 15.9
+    },
+    "volatile acidity": {
+      "min": 0.08,
+      "max": 1.58
+    },
+    "citric acid": {
+      "min": 0.0,
+      "max": 1.66
+    },
+    "residual sugar": {
+      "min": 0.6,
+      "max": 65.8
+    },
+    "chlorides": {
+      "min": 0.009,
+      "max": 0.611
+    },
+    "free sulfur dioxide": {
+      "min": 1.0,
+      "max": 289.0
+    },
+    "total sulfur dioxide": {
+      "min": 6.0,
+      "max": 440.0
+    },
+    "density": {
+      "min": 0.98711,
+      "max": 1.03898
+    },
+    "pH": {
+      "min": 2.72,
+      "max": 4.01
+    },
+    "sulphates": {
+      "min": 0.22,
+      "max": 2.0
+    },
+    "alcohol": {
+      "min": 8.0,
+      "max": 14.9
+    },
+    "wine_type": {
+      "min": 0.0,
+      "max": 1.0
+    }
+  },
+  "example": {
+    "fixed acidity": 7.4,
+    "volatile acidity": 0.7,
+    "citric acid": 0.0,
+    "residual sugar": 1.9,
+    "chlorides": 0.076,
+    "free sulfur dioxide": 11.0,
+    "total sulfur dioxide": 34.0,
+    "density": 0.9978,
+    "pH": 3.51,
+    "sulphates": 0.56,
+    "alcohol": 9.4,
+    "wine_type": 1
+  },
+  "target": {
+    "regression": "quality (continuous, 0-10 scale)",
+    "classification": {
+      "threshold": 6,
+      "labels": {
+        "0": "high (>=6)",
+        "1": "low (<6)"
+      }
+    }
+  }
+}

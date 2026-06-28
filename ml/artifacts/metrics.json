@@ -1,0 +1,63 @@
+{
+  "sklearn_version": "1.9.0",
+  "python_version": "3.11.9",
+  "trained_at_unix": 1782624300,
+  "dataset_rows": 6497,
+  "random_state": 42,
+  "regression": {
+    "model": "RandomForestRegressor",
+    "params": {
+      "n_estimators": 400,
+      "max_depth": null,
+      "random_state": 42
+    },
+    "r2": 0.5002181228688356,
+    "mae": 0.43637692307692305,
+    "rmse": 0.6075461125265751,
+    "top_features": [
+      [
+        "alcohol",
+        0.2557
+      ],
+      [
+        "volatile acidity",
+        0.1282
+      ],
+      [
+        "free sulfur dioxide",
+        0.0892
+      ]
+    ]
+  },
+  "classification": {
+    "model": "DecisionTreeClassifier",
+    "params": {
+      "criterion": "gini",
+      "max_depth": 6,
+      "min_samples_leaf": 20,
+      "class_weight": null,
+      "random_state": 42
+    },
+    "threshold": 6,
+    "labels": {
+      "0": "high (>=6)",
+      "1": "low (<6)"
+    },
+    "accuracy": 0.7369230769230769,
+    "roc_auc": 0.8094510292405704,
+    "top_features": [
+      [
+        "alcohol",
+        0.4937
+      ],
+      [
+        "volatile acidity",
+        0.2073
+      ],
+      [
+        "sulphates",
+        0.0669
+      ]
+    ]
+  }
+}
