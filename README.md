@@ -77,11 +77,12 @@ make ui          # Streamlit tasting-room at http://localhost:8501
 
 ## Provenance
 
-The two models originate in the author's Master of Software Engineering (AI) coursework
-(MLN601 — regression + classification). This repository is an independent **serving
-layer**: it re-implements the pipeline cleanly from the public UCI CSVs in `ml/train.py`
-and contains **no assessment notebooks, reports, or identifying data** — just the public
-dataset and a fresh, deterministic training script.
+The two models originate in the author's [Master of Software Engineering (AI)
+coursework](https://github.com/lfariabr/masters-swe-ai) (MLN601 — regression +
+classification). This repository is an independent **serving layer**: it re-implements
+the pipeline cleanly from the public UCI CSVs in `ml/train.py` and contains **no
+assessment notebooks, reports, or identifying data** — just the public dataset and a
+fresh, deterministic training script.
 
 ## License
 
