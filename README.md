@@ -1,9 +1,9 @@
 # 🍷 sommelier-api
 
-> Two-lens wine quality predictor on the UCI Wine Quality dataset. The same 6,497
-> wines, two questions: **how good is this wine?** (regression) and **is this wine
-> good?** (classification) — served by a FastAPI backend and a Streamlit tasting-room UI
-> over one shared, framework-agnostic ML core.
+> Two-lens wine quality predictor on the UCI Wine Quality dataset. The same wines
+> (5,320 unique after a duplicate-leakage audit), two questions: **how good is this
+> wine?** (regression) and **is this wine good?** (classification) — served by a FastAPI
+> backend and a Streamlit tasting-room UI over one shared, framework-agnostic ML core.
 
 > ▶️ **Live:** **[Streamlit app](https://sommelier-api.streamlit.app/)** · **[FastAPI Swagger](https://sommelier-api-yd1m.onrender.com/docs)**
 > — paste a wine's chemistry, get both verdicts. *(Render free tier sleeps when idle; first call may take ~50s.)*
@@ -12,11 +12,12 @@
 
 | Lens | Question | Model | Headline metric |
 |---|---|---|---|
-| **Score** (regression) | *How good, on a 0–10 scale?* | `RandomForestRegressor` | R² **0.50**, MAE **0.44** |
-| **Grade** (classification) | *High (≥6) or low (<6)?* | `DecisionTreeClassifier` | accuracy **0.74**, ROC-AUC **0.81** |
+| **Score** (regression) | *How good, on a 0–10 scale?* | `RandomForestRegressor` | R² **0.41**, MAE **0.51** |
+| **Grade** (classification) | *High (≥6) or low (<6)?* | balanced `DecisionTreeClassifier` | ROC-AUC **0.79**, sensitivity **0.73** |
 
 Both read the same 12 features (11 physicochemical measurements + an engineered
-`wine_type` flag) and are re-trained deterministically from the raw CSVs.
+`wine_type` flag) and are re-trained deterministically from the raw CSVs, after
+removing 1,177 exact duplicate rows (see *v2: the leakage audit* below).
 
 ## Architecture
 
@@ -63,17 +64,31 @@ make ui          # Streamlit tasting-room at http://localhost:8501
 
 ## Model card
 
-- **Dataset:** UCI Wine Quality (Cortez et al., 2009) — 1,599 red + 4,898 white = 6,497 wines.
+- **Dataset:** UCI Wine Quality (Cortez et al., 2009) — 1,599 red + 4,898 white = 6,497
+  raw rows; 1,177 exact duplicates removed before the split → **5,320 unique wines**.
 - **Features (12):** fixed/volatile acidity, citric acid, residual sugar, chlorides,
   free/total SO₂, density, pH, sulphates, alcohol, `wine_type` (red=1, white=0).
-- **Score model:** `RandomForestRegressor(n_estimators=400, random_state=42)` → R² 0.50, MAE 0.44, RMSE 0.61.
-- **Grade model:** `DecisionTreeClassifier(max_depth=6, min_samples_leaf=20, random_state=42)`,
-  threshold quality ≥ 6 → accuracy 0.74, ROC-AUC 0.81. Class 1 = low, class 0 = high (low is the minority class).
+- **Score model:** `RandomForestRegressor(n_estimators=400, random_state=42)` → R² 0.41, MAE 0.51, RMSE 0.66.
+- **Grade model:** `DecisionTreeClassifier(max_depth=5, min_samples_leaf=20, class_weight="balanced",
+  random_state=42)`, threshold quality ≥ 6 → ROC-AUC 0.79, sensitivity 0.73, specificity 0.73,
+  accuracy 0.73. Class 1 = low, class 0 = high (low is the minority class). The class weighting
+  is deliberate: a missed low-quality wine costs more than a false alarm, so the model trades
+  some precision for catching 73% of genuinely low wines instead of 59%.
 - **Honesty:** these models predict **human taste-panel scores**, not an objective truth.
-  Wine quality is subjective and the R² ceiling on this dataset is genuinely low —
-  the regressor explains about half the variance, hence the name.
+  Wine quality is subjective and the performance ceiling on this dataset is genuinely low.
 - **Reproducibility:** `make train` is deterministic; metrics in `ml/artifacts/metrics.json`
   are the real re-trained numbers, surfaced live at `GET /model/info`.
+
+### v2: the leakage audit
+
+The v1 release reported R² 0.50 and ROC-AUC 0.81. Auditing the same pipeline for the
+follow-up university assessment surfaced the problem: the raw UCI files contain **1,177
+exact duplicate rows**, and with a random split identical wines land on both sides of
+the train/test boundary — the model is graded on rows it has already seen. Deduplicating
+before the split drops the metrics to their honest values (R² 0.41, ROC-AUC 0.79).
+Nothing about the models improved or regressed; the *evaluation* was corrected. The
+lower numbers are the real ones, and this section exists because publishing them
+matters more than keeping the prettier v1 headline.
 
 ## Provenance
 

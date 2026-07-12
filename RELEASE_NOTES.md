@@ -1,5 +1,27 @@
 # Release Notes
 
+## v0.1.0 — The leakage audit (2026-07-13)
+
+Honest-metrics release. Auditing the pipeline for MLN601 Assessment 2 surfaced 1,177
+exact duplicate rows in the raw UCI files crossing the train/test split and inflating
+every published v0.0.1 metric.
+
+### Changed
+- **Dedup before split** in `ml/train.py`: 6,497 raw rows → 5,320 unique. Provenance
+  (`raw_rows`, `duplicates_removed`) recorded in `metrics.json` and served at `/model/info`.
+- **Grade model is now the assessment-approved balanced tree:**
+  `DecisionTreeClassifier(gini, max_depth=5, min_samples_leaf=20, class_weight="balanced")`.
+  It trades some false alarms for catching 73% of genuinely low wines (was 59% at the
+  default weighting).
+- **Honest re-trained metrics:** regression R² 0.41 / MAE 0.51 / RMSE 0.66 (was 0.50 /
+  0.44 / 0.61); classification ROC-AUC 0.79 / sensitivity 0.73 / specificity 0.73 /
+  accuracy 0.73 (was accuracy 0.74 / ROC-AUC 0.81). The models did not get worse —
+  the evaluation got corrected.
+- `metrics.json` and `/model/info` now include sensitivity, specificity, F1 and the
+  full confusion matrix; the Streamlit model card and About page lead with them.
+- Tests re-pinned to the deduplicated numbers plus a new gate test mirroring the
+  assessment approval criteria (AUC ≥ 0.75, sensitivity ≥ 0.70, specificity ≥ 0.70).
+
 ## v0.0.1 — First public release (2026-06-29)
 
 The first end-to-end cut of **sommelier-api**: two ML models trained on the UCI Wine
