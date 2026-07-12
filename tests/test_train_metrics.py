@@ -5,7 +5,7 @@ from ml import ARTIFACTS_DIR
 from ml.features import load_raw
 from ml.predict import GRADE_LABELS, load_artifacts, predict_grade, predict_score
 
-TOL = 0.02  # tolerance vs the source notebook's reported metrics
+TOL = 0.02  # tolerance vs the deduplicated retraining reported in the model card
 
 
 def _metrics():
@@ -14,22 +14,38 @@ def _metrics():
 
 def test_regression_metrics_reproduce():
     m = _metrics()["regression"]
-    assert abs(m["r2"] - 0.500) <= TOL
-    assert abs(m["mae"] - 0.436) <= TOL
-    assert abs(m["rmse"] - 0.608) <= TOL
+    assert abs(m["r2"] - 0.415) <= TOL
+    assert abs(m["mae"] - 0.510) <= TOL
+    assert abs(m["rmse"] - 0.663) <= TOL
 
 
 def test_classification_metrics_reproduce():
+    # Must match the MLN601 A2 v5 balanced Decision Tree on deduplicated data.
     m = _metrics()["classification"]
-    assert abs(m["accuracy"] - 0.737) <= TOL
-    assert abs(m["roc_auc"] - 0.809) <= TOL
+    assert abs(m["accuracy"] - 0.728) <= TOL
+    assert abs(m["roc_auc"] - 0.792) <= TOL
+    assert abs(m["sensitivity_low"] - 0.734) <= TOL
+    assert abs(m["specificity_high"] - 0.725) <= TOL
+
+
+def test_classification_passes_screening_gates():
+    # The A2 v5 operational gates the served model was approved against.
+    m = _metrics()["classification"]
+    assert m["roc_auc"] >= 0.75
+    assert m["sensitivity_low"] >= 0.70
+    assert m["specificity_high"] >= 0.70
 
 
 def test_metrics_metadata_present():
     m = _metrics()
-    assert m["dataset_rows"] == 6497
+    assert m["raw_rows"] == 6497
+    assert m["duplicates_removed"] == 1177
+    assert m["dataset_rows"] == 5320
     assert m["sklearn_version"]          # surfaced at /model/info
     assert m["random_state"] == 42
+    cm = m["classification"]["confusion_matrix"]
+    assert set(cm) == {"tn", "fp", "fn", "tp"}
+    assert sum(cm.values()) == 1064      # the 20% held-out test split
 
 
 def test_artifacts_load_and_schema_shape():

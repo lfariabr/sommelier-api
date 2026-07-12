@@ -26,7 +26,9 @@ def test_model_info_reports_real_metrics():
     body = r.json()
     assert body["regression"]["r2"] > 0.4
     assert body["classification"]["roc_auc"] > 0.7
-    assert body["dataset_rows"] == 6497
+    assert body["classification"]["sensitivity_low"] > 0.7
+    assert body["classification"]["specificity_high"] > 0.7
+    assert body["dataset_rows"] == 5320
 
 
 def test_predict_score_golden():
