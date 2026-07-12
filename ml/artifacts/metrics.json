@@ -1,8 +1,10 @@
 {
   "sklearn_version": "1.9.0",
   "python_version": "3.11.9",
-  "trained_at_unix": 1782624300,
-  "dataset_rows": 6497,
+  "trained_at_unix": 1783891689,
+  "raw_rows": 6497,
+  "duplicates_removed": 1177,
+  "dataset_rows": 5320,
   "random_state": 42,
   "regression": {
     "model": "RandomForestRegressor",
@@ -11,21 +13,21 @@
       "max_depth": null,
       "random_state": 42
     },
-    "r2": 0.5002181228688356,
-    "mae": 0.43637692307692305,
-    "rmse": 0.6075461125265751,
+    "r2": 0.41459084153850323,
+    "mae": 0.5096052631578948,
+    "rmse": 0.6634399807689515,
     "top_features": [
       [
         "alcohol",
-        0.2557
+        0.2629
       ],
       [
         "volatile acidity",
-        0.1282
+        0.116
       ],
       [
         "free sulfur dioxide",
-        0.0892
+        0.0942
       ]
     ]
   },
@@ -33,9 +35,9 @@
     "model": "DecisionTreeClassifier",
     "params": {
       "criterion": "gini",
-      "max_depth": 6,
+      "max_depth": 5,
       "min_samples_leaf": 20,
-      "class_weight": null,
+      "class_weight": "balanced",
       "random_state": 42
     },
     "threshold": 6,
@@ -43,20 +45,29 @@
       "0": "high (>=6)",
       "1": "low (<6)"
     },
-    "accuracy": 0.7369230769230769,
-    "roc_auc": 0.8094510292405704,
+    "accuracy": 0.7283834586466166,
+    "sensitivity_low": 0.7336683417085427,
+    "specificity_high": 0.7252252252252253,
+    "f1_low": 0.6689576174112256,
+    "roc_auc": 0.7923306472301448,
+    "confusion_matrix": {
+      "tn": 483,
+      "fp": 183,
+      "fn": 106,
+      "tp": 292
+    },
     "top_features": [
       [
         "alcohol",
-        0.4937
+        0.6184
       ],
       [
         "volatile acidity",
-        0.2073
+        0.1805
       ],
       [
-        "sulphates",
-        0.0669
+        "free sulfur dioxide",
+        0.0735
       ]
     ]
   }

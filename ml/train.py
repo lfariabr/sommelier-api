@@ -20,8 +20,11 @@ import sklearn
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
     accuracy_score,
+    confusion_matrix,
+    f1_score,
     mean_absolute_error,
     r2_score,
+    recall_score,
     roc_auc_score,
     root_mean_squared_error,
 )
@@ -38,9 +41,15 @@ LABELS = {0: "high (>=6)", 1: "low (<6)"}
 
 def main() -> None:
     df = load_raw()
+    # Exact source-row duplicates (1,177 in the UCI files) otherwise land on both
+    # sides of the split and inflate every metric — found auditing MLN601 A2.
+    raw_rows = len(df)
+    df = df.drop_duplicates().reset_index(drop=True)
+    duplicates_removed = raw_rows - len(df)
     X = build_feature_matrix(df)
     n_rows = len(df)
-    print(f"Loaded {n_rows} wines "
+    print(f"Loaded {raw_rows} wines, removed {duplicates_removed} exact duplicates "
+          f"→ {n_rows} unique "
           f"({int((df.wine_type == 1).sum())} red / {int((df.wine_type == 0).sum())} white)")
 
     # ---- A1: regression (predict the score) ----
@@ -66,18 +75,28 @@ def main() -> None:
     Xtr2, Xte2, ytr2, yte2 = train_test_split(
         X, y_clf, test_size=0.20, random_state=RANDOM_STATE, stratify=y_clf
     )
+    # Structure and class weighting mirror the model approved in MLN601 A2 v5:
+    # the balanced tree passed all three screening gates (AUC / sensitivity /
+    # specificity >= 0.75 / 0.70 / 0.70 in training CV).
     clf = DecisionTreeClassifier(
-        criterion="gini", max_depth=6, min_samples_leaf=20,
-        class_weight=None, random_state=RANDOM_STATE,
+        criterion="gini", max_depth=5, min_samples_leaf=20,
+        class_weight="balanced", random_state=RANDOM_STATE,
     )
     clf.fit(Xtr2, ytr2)
+    pred2 = clf.predict(Xte2)
     proba_low = clf.predict_proba(Xte2)[:, 1]  # class 1 = low
+    tn, fp, fn, tp = confusion_matrix(yte2, pred2, labels=[0, 1]).ravel()
     clf_metrics = {
-        "accuracy": float(accuracy_score(yte2, clf.predict(Xte2))),
+        "accuracy": float(accuracy_score(yte2, pred2)),
+        "sensitivity_low": float(recall_score(yte2, pred2, pos_label=1)),
+        "specificity_high": float(tn / (tn + fp)),
+        "f1_low": float(f1_score(yte2, pred2, pos_label=1)),
         "roc_auc": float(roc_auc_score(yte2, proba_low)),
+        "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)},
     }
     print(f"A2 DecisionTreeClassifier  "
-          f"ACC={clf_metrics['accuracy']:.4f}  ROC_AUC={clf_metrics['roc_auc']:.4f}")
+          f"ACC={clf_metrics['accuracy']:.4f}  ROC_AUC={clf_metrics['roc_auc']:.4f}  "
+          f"SENS={clf_metrics['sensitivity_low']:.4f}  SPEC={clf_metrics['specificity_high']:.4f}")
 
     # ---- feature importances (top 3 each) ----
     reg_imp = sorted(zip(FEATURE_ORDER, reg.feature_importances_), key=lambda t: -t[1])
@@ -104,6 +123,8 @@ def main() -> None:
         "sklearn_version": sklearn.__version__,
         "python_version": platform.python_version(),
         "trained_at_unix": int(time.time()),
+        "raw_rows": raw_rows,
+        "duplicates_removed": duplicates_removed,
         "dataset_rows": n_rows,
         "random_state": RANDOM_STATE,
         "regression": {
@@ -115,8 +136,8 @@ def main() -> None:
         "classification": {
             "model": "DecisionTreeClassifier",
             "params": {
-                "criterion": "gini", "max_depth": 6, "min_samples_leaf": 20,
-                "class_weight": None, "random_state": RANDOM_STATE,
+                "criterion": "gini", "max_depth": 5, "min_samples_leaf": 20,
+                "class_weight": "balanced", "random_state": RANDOM_STATE,
             },
             "threshold": QUALITY_THRESHOLD,
             "labels": LABELS,
