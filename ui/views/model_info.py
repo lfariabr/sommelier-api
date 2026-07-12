@@ -11,7 +11,8 @@ def render() -> None:
     _, _, _, metrics = load_artifacts()
     st.caption(
         f"scikit-learn {metrics['sklearn_version']} · "
-        f"{metrics['dataset_rows']:,} wines · random_state {metrics['random_state']}"
+        f"{metrics['raw_rows']:,} raw wines − {metrics['duplicates_removed']:,} exact "
+        f"duplicates = {metrics['dataset_rows']:,} unique · random_state {metrics['random_state']}"
     )
 
     reg, clf = metrics["regression"], metrics["classification"]
@@ -27,15 +28,19 @@ def render() -> None:
             st.write(f"- {name} ({imp:.2f})")
     with right:
         st.subheader("Grade · classification")
-        st.caption(f"{clf['model']} · threshold quality ≥ {clf['threshold']}")
-        st.metric("Accuracy", f"{clf['accuracy']:.3f}")
+        st.caption(f"{clf['model']} · threshold quality ≥ {clf['threshold']} · class-weight balanced")
         st.metric("ROC-AUC", f"{clf['roc_auc']:.3f}")
+        st.metric("Sensitivity (low caught)", f"{clf['sensitivity_low']:.3f}")
+        st.metric("Specificity (high cleared)", f"{clf['specificity_high']:.3f}")
+        st.metric("Accuracy", f"{clf['accuracy']:.3f}")
         st.write("**Top features**")
         for name, imp in clf["top_features"]:
             st.write(f"- {name} ({imp:.2f})")
 
     st.info(
         "These models predict **human taste-panel scores**, not an objective truth. "
-        "Wine quality is subjective and the R² ceiling on this dataset is genuinely low "
-        "— the regressor explains about half the variance. Hence the name."
+        "Wine quality is subjective and the R² ceiling on this dataset is genuinely low. "
+        "The grade model is class-weight balanced on purpose: it trades some false alarms "
+        "for catching more genuinely low wines — the same operating choice approved in the "
+        "source assessment."
     )
