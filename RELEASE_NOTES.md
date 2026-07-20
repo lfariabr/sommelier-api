@@ -1,5 +1,22 @@
 # Release Notes
 
+## v0.1.1 — A2 v7 parity lock (2026-07-20)
+
+The classification serving path is now explicitly and mechanically tied to the final
+MLN601 Assessment 2 v7 submission, without changing its predictions.
+
+### Changed
+- Added a checked-in parity contract containing source commit and artifact hashes,
+  raw-dataset hashes, feature order, target encoding, split, tree parameters, exact
+  held-out metrics and confusion matrix.
+- Training now fails before writing artifacts when dataset identity, row counts,
+  feature order, metrics or confusion matrix diverge from A2 v7.
+- Added exact parity tests for the committed classifier versus a fresh deterministic
+  retrain, including predictions, probabilities and internal tree arrays.
+- `/health` and `/model/info` now expose additive provenance fields identifying the
+  `mln601-a2-v7` model contract and source submission commit.
+- Added `make parity`; existing prediction request and response contracts are unchanged.
+
 ## v0.1.0 — The leakage audit (2026-07-13)
 
 Honest-metrics release. Auditing the pipeline for MLN601 Assessment 2 surfaced 1,177

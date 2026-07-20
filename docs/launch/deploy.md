@@ -30,7 +30,7 @@ Once the app + article URLs exist, add this row to the Projects table in
 `masters_SWEAI/README.md` (github.com/lfariabr/masters-swe-ai):
 
 ```markdown
-| **Sommelier API** | Two-lens wine quality predictor on the UCI Wine Quality dataset (6,497 reds + whites). FastAPI service serving a RandomForest regressor (R² 0.50) and a DecisionTree classifier (ROC-AUC 0.81), with a Streamlit tasting-room UI and a local/API inference toggle. | ✅ | [Repo](https://github.com/lfariabr/sommelier-api) | [App](https://sommelier-api.streamlit.app/) / [Article](REPLACE-AFTER-PUBLISH) |
+| **Sommelier API** | Two-lens wine quality predictor on 5,320 unique UCI wines after duplicate removal. FastAPI service serving a RandomForest regressor (R² 0.41) and an A2 v7 parity-locked DecisionTree classifier (ROC-AUC 0.79, sensitivity 0.73), with a Streamlit tasting-room UI and a local/API inference toggle. | ✅ | [Repo](https://github.com/lfariabr/sommelier-api) | [App](https://sommelier-api.streamlit.app/) / [Article](REPLACE-AFTER-PUBLISH) |
 ```
 
 ## 5. Publish the article

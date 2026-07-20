@@ -1,7 +1,20 @@
 {
+  "provenance": {
+    "model_contract": "mln601-a2-v7",
+    "assessment": "MLN601 Assessment 2",
+    "submission_version": "v7",
+    "source_repository": "https://github.com/lfariabr/masters-swe-ai",
+    "source_commit": "029b4b14c52b4b19ea111bca6f43a3e75e180e0f",
+    "submission_sha256": "f47c1daaaeb4e8fe6f36e000b276d42624b0c81a1ee59307be2878d2ada23f1b",
+    "source_metrics_sha256": "5f1c0f396bf830cc3bd768b5d3cc38af71e8cbf0bd4610d755456f921a9477b8",
+    "dataset_sha256": {
+      "winequality-red.csv": "4a402cf041b025d4566d954c3b9ba8635a3a8a01e039005d97d6a710278cf05e",
+      "winequality-white.csv": "76c3f809815c17c07212622f776311faeb31e87610d52c26d87d6e361b169836"
+    }
+  },
   "sklearn_version": "1.9.0",
   "python_version": "3.11.9",
-  "trained_at_unix": 1783891689,
+  "trained_at_unix": 1784513361,
   "raw_rows": 6497,
   "duplicates_removed": 1177,
   "dataset_rows": 5320,

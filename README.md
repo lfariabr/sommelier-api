@@ -47,6 +47,7 @@ to local automatically if the API is cold.
 make install     # venv (Python 3.11.9) + pinned deps
 make train       # reproduce both models → ml/artifacts/
 make test        # pytest (feature contract, metric reproduction, API, UI fallback)
+make parity      # exact MLN601 A2 v7 dataset/model/API parity checks
 make api         # FastAPI at http://localhost:8000/docs
 make ui          # Streamlit tasting-room at http://localhost:8501
 ```
@@ -55,7 +56,7 @@ make ui          # Streamlit tasting-room at http://localhost:8501
 
 | Method | Path | Returns |
 |---|---|---|
-| `GET` | `/health` | service status + scikit-learn version |
+| `GET` | `/health` | status + scikit-learn version + A2 model contract/source commit |
 | `GET` | `/features` | input schema + valid range per feature |
 | `GET` | `/model/info` | both models: params, real training metrics, top features |
 | `POST` | `/predict/score` | `{ "quality": 5.8 }` |
@@ -94,10 +95,18 @@ matters more than keeping the prettier v1 headline.
 
 The two models originate in the author's [Master of Software Engineering (AI)
 coursework](https://github.com/lfariabr/masters-swe-ai) (MLN601 — regression +
-classification). This repository is an independent **serving layer**: it re-implements
-the pipeline cleanly from the public UCI CSVs in `ml/train.py` and contains **no
-assessment notebooks, reports, or identifying data** — just the public dataset and a
-fresh, deterministic training script.
+classification). The served classifier is locked to the submitted **Assessment 2 v7**
+notebook at source commit `029b4b14c52b4b19ea111bca6f43a3e75e180e0f`.
+`ml/assessment_contract.json` records the notebook, source-metrics and raw-dataset
+SHA-256 hashes, feature order, target semantics, split, estimator parameters, exact
+held-out metrics and confusion matrix.
+
+This repository remains an independent **serving layer**: it contains no assessment
+notebooks, reports, or identifying data. `make train` rebuilds from the public CSVs and
+refuses to write artifacts if the A2 v7 contract is not reproduced; `make parity`
+additionally compares the committed classifier's predictions, probabilities and tree
+structure with a fresh retrain. The notebook's SHAP analysis documents model behaviour,
+but per-lot SHAP explanations are intentionally not part of the current API contract.
 
 ## License
 

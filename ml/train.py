@@ -12,6 +12,7 @@ Run:  python -m ml.train
 from __future__ import annotations
 
 import json
+import math
 import platform
 import time
 
@@ -32,20 +33,64 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
 from ml import ARTIFACTS_DIR
+from ml.contract import load_assessment_contract, validate_dataset_files
 from ml.features import FEATURE_ORDER, build_feature_matrix, load_raw
 
-RANDOM_STATE = 42
-QUALITY_THRESHOLD = 6  # quality >= 6 → high (class 0); < 6 → low (class 1)
-LABELS = {0: "high (>=6)", 1: "low (<6)"}
+CONTRACT = load_assessment_contract()
+RANDOM_STATE = CONTRACT["split"]["random_state"]
+QUALITY_THRESHOLD = CONTRACT["target"]["quality_threshold"]
+LABELS = {
+    CONTRACT["target"]["negative_class"]: CONTRACT["target"]["negative_label"],
+    CONTRACT["target"]["positive_class"]: CONTRACT["target"]["positive_label"],
+}
+
+
+def _validate_a2_metrics(actual: dict) -> None:
+    """Stop artifact generation unless the submitted A2 v7 result is reproduced."""
+    expected = CONTRACT["expected_test_metrics"]
+    for metric_name, expected_value in expected.items():
+        if metric_name == "confusion_matrix":
+            if actual[metric_name] != expected_value:
+                raise RuntimeError(
+                    "A2 v7 parity failure for confusion_matrix: "
+                    f"expected {expected_value}, got {actual[metric_name]}"
+                )
+            continue
+        if not math.isclose(
+            actual[metric_name], expected_value, rel_tol=0.0, abs_tol=1e-12
+        ):
+            raise RuntimeError(
+                f"A2 v7 parity failure for {metric_name}: "
+                f"expected {expected_value}, got {actual[metric_name]}"
+            )
 
 
 def main() -> None:
+    validate_dataset_files()
+    if FEATURE_ORDER != CONTRACT["feature_order"]:
+        raise RuntimeError(
+            "A2 v7 parity failure: the serving feature order differs from the "
+            "submitted notebook"
+        )
+
     df = load_raw()
     # Exact source-row duplicates (1,177 in the UCI files) otherwise land on both
     # sides of the split and inflate every metric — found auditing MLN601 A2.
     raw_rows = len(df)
     df = df.drop_duplicates().reset_index(drop=True)
     duplicates_removed = raw_rows - len(df)
+    expected_dataset = CONTRACT["dataset"]
+    observed_counts = (raw_rows, duplicates_removed, len(df))
+    expected_counts = (
+        expected_dataset["raw_rows"],
+        expected_dataset["duplicates_removed"],
+        expected_dataset["unique_rows"],
+    )
+    if observed_counts != expected_counts:
+        raise RuntimeError(
+            f"A2 v7 dataset parity failure: expected {expected_counts}, "
+            f"got {observed_counts}"
+        )
     X = build_feature_matrix(df)
     n_rows = len(df)
     print(f"Loaded {raw_rows} wines, removed {duplicates_removed} exact duplicates "
@@ -73,15 +118,16 @@ def main() -> None:
     # ---- A2: classification (grade high/low) ----
     y_clf = (df["quality"] < QUALITY_THRESHOLD).astype(int)  # 1 = low, 0 = high
     Xtr2, Xte2, ytr2, yte2 = train_test_split(
-        X, y_clf, test_size=0.20, random_state=RANDOM_STATE, stratify=y_clf
+        X,
+        y_clf,
+        test_size=CONTRACT["split"]["test_size"],
+        random_state=RANDOM_STATE,
+        stratify=y_clf,
     )
-    # Structure and class weighting mirror the model approved in MLN601 A2 v5:
+    # Structure and class weighting mirror the model submitted in MLN601 A2 v7:
     # the balanced tree passed all three screening gates (AUC / sensitivity /
     # specificity >= 0.75 / 0.70 / 0.70 in training CV).
-    clf = DecisionTreeClassifier(
-        criterion="gini", max_depth=5, min_samples_leaf=20,
-        class_weight="balanced", random_state=RANDOM_STATE,
-    )
+    clf = DecisionTreeClassifier(**CONTRACT["estimator"]["params"])
     clf.fit(Xtr2, ytr2)
     pred2 = clf.predict(Xte2)
     proba_low = clf.predict_proba(Xte2)[:, 1]  # class 1 = low
@@ -94,6 +140,7 @@ def main() -> None:
         "roc_auc": float(roc_auc_score(yte2, proba_low)),
         "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)},
     }
+    _validate_a2_metrics(clf_metrics)
     print(f"A2 DecisionTreeClassifier  "
           f"ACC={clf_metrics['accuracy']:.4f}  ROC_AUC={clf_metrics['roc_auc']:.4f}  "
           f"SENS={clf_metrics['sensitivity_low']:.4f}  SPEC={clf_metrics['specificity_high']:.4f}")
@@ -120,6 +167,16 @@ def main() -> None:
     }
 
     metrics = {
+        "provenance": {
+            "model_contract": CONTRACT["contract_version"],
+            "assessment": CONTRACT["assessment"],
+            "submission_version": CONTRACT["submission_version"],
+            "source_repository": CONTRACT["source_repository"],
+            "source_commit": CONTRACT["source_commit"],
+            "submission_sha256": CONTRACT["submission_sha256"],
+            "source_metrics_sha256": CONTRACT["source_metrics_sha256"],
+            "dataset_sha256": CONTRACT["dataset"]["files"],
+        },
         "sklearn_version": sklearn.__version__,
         "python_version": platform.python_version(),
         "trained_at_unix": int(time.time()),
@@ -135,10 +192,7 @@ def main() -> None:
         },
         "classification": {
             "model": "DecisionTreeClassifier",
-            "params": {
-                "criterion": "gini", "max_depth": 5, "min_samples_leaf": 20,
-                "class_weight": "balanced", "random_state": RANDOM_STATE,
-            },
+            "params": CONTRACT["estimator"]["params"],
             "threshold": QUALITY_THRESHOLD,
             "labels": LABELS,
             **clf_metrics,

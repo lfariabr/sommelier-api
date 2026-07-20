@@ -31,7 +31,7 @@ app = FastAPI(
         "POST 11 physicochemical readings + wine_type to get a predicted quality "
         "score (regression) and a high/low grade (classification)."
     ),
-    version="0.0.1",
+    version="0.1.1",
     lifespan=lifespan,
 )
 
@@ -39,7 +39,13 @@ app = FastAPI(
 @app.get("/health", tags=["meta"])
 def health():
     _, _, _, metrics = load_artifacts()
-    return {"status": "ok", "sklearn_version": metrics["sklearn_version"]}
+    provenance = metrics["provenance"]
+    return {
+        "status": "ok",
+        "sklearn_version": metrics["sklearn_version"],
+        "model_contract": provenance["model_contract"],
+        "source_commit": provenance["source_commit"],
+    }
 
 
 @app.get("/features", tags=["meta"])

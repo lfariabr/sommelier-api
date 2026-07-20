@@ -1,10 +1,13 @@
 """FastAPI TestClient coverage — endpoints, golden prediction, validation 422s."""
+import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
 from api.schemas import EXAMPLE_WINE
+from ml.contract import load_assessment_contract
 
 client = TestClient(app)
+CONTRACT = load_assessment_contract()
 
 
 def test_health():
@@ -13,6 +16,8 @@ def test_health():
     body = r.json()
     assert body["status"] == "ok"
     assert body["sklearn_version"]
+    assert body["model_contract"] == CONTRACT["contract_version"]
+    assert body["source_commit"] == CONTRACT["source_commit"]
 
 
 def test_features_endpoint():
@@ -29,19 +34,24 @@ def test_model_info_reports_real_metrics():
     assert body["classification"]["sensitivity_low"] > 0.7
     assert body["classification"]["specificity_high"] > 0.7
     assert body["dataset_rows"] == 5320
+    assert body["provenance"]["model_contract"] == CONTRACT["contract_version"]
+    assert body["provenance"]["source_commit"] == CONTRACT["source_commit"]
 
 
 def test_predict_score_golden():
     r = client.post("/predict/score", json=EXAMPLE_WINE)
     assert r.status_code == 200
-    assert 0 <= r.json()["quality"] <= 10
+    assert r.json()["quality"] == pytest.approx(5.065, abs=1e-12)
 
 
 def test_predict_grade_probabilities_sum_to_one():
     r = client.post("/predict/grade", json=EXAMPLE_WINE)
     assert r.status_code == 200
     body = r.json()
-    assert body["grade"] in {"high", "low"}
+    assert body["grade"] == "low"
+    assert body["label"] == 1
+    assert body["proba_high"] == pytest.approx(0.3501, abs=1e-4)
+    assert body["proba_low"] == pytest.approx(0.6499, abs=1e-4)
     assert abs(body["proba_high"] + body["proba_low"] - 1.0) < 1e-3
 
 

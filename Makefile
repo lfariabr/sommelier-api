@@ -2,7 +2,7 @@ VENV := venv
 PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 
-.PHONY: install train api ui test lint freeze clean
+.PHONY: install train api ui test parity lint freeze clean
 
 install:  ## create venv (needs Python 3.11.x — see .python-version) + install deps
 	python3 -m venv $(VENV)
@@ -20,6 +20,9 @@ ui:  ## run the Streamlit app at http://localhost:8501
 
 test:  ## run the test suite
 	$(PY) -m pytest -q
+
+parity:  ## verify the served classifier against the submitted MLN601 A2 v7 contract
+	$(PY) -m pytest -q tests/test_train_metrics.py tests/test_api.py
 
 lint:  ## ruff lint
 	$(VENV)/bin/ruff check .
