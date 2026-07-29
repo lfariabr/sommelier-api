@@ -1,4 +1,4 @@
-"""MLN601 Assessment 2 v7 parity contract and validation helpers."""
+"""MLN601 Assessment 2 parity contract and validation helpers."""
 from __future__ import annotations
 
 import hashlib
@@ -13,7 +13,7 @@ CONTRACT_PATH = Path(__file__).with_name("assessment_contract.json")
 
 @lru_cache(maxsize=1)
 def load_assessment_contract() -> dict:
-    """Return the checked-in contract for the submitted A2 v7 classifier."""
+    """Return the checked-in contract for the submitted A2 classifier."""
     return json.loads(CONTRACT_PATH.read_text())
 
 
@@ -27,7 +27,7 @@ def sha256_file(path: Path) -> str:
 
 
 def validate_dataset_files(data_dir: Path = DATA_DIR) -> None:
-    """Fail if either local UCI source file differs from the A2 v7 dataset."""
+    """Fail if either local UCI source file differs from the contract dataset."""
     contract = load_assessment_contract()
     for filename, expected_hash in contract["dataset"]["files"].items():
         actual_hash = sha256_file(data_dir / filename)
