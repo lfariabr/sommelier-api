@@ -39,6 +39,7 @@ def _metrics():
 
 
 def _classification_split():
+    """Recreate the assessment's deterministic stratified train/test split."""
     df = load_raw().drop_duplicates().reset_index(drop=True)
     X = build_feature_matrix(df)
     y = (
@@ -55,6 +56,7 @@ def _classification_split():
 
 
 def _classification_metrics(y_true, predictions, proba_low):
+    """Calculate the complete A2 classification metric set."""
     tn, fp, fn, tp = confusion_matrix(
         y_true, predictions, labels=[0, 1]
     ).ravel()
@@ -130,6 +132,7 @@ def test_raw_dataset_matches_submission_hashes():
 
 
 def test_served_classifier_exactly_reproduces_a2_v8_contract():
+    """Pin the committed serving artifact to the exact submitted result."""
     _, X_test, _, y_test = _classification_split()
     _, served, schema, _ = load_artifacts()
 
@@ -153,6 +156,7 @@ def test_served_classifier_exactly_reproduces_a2_v8_contract():
 
 
 def test_fresh_a2_v8_retrain_is_equivalent_across_platforms():
+    """Bound numerical drift when retraining on a different CPU platform."""
     X_train, X_test, y_train, y_test = _classification_split()
     fresh = build_classifier(CONTRACT["estimator"])
     fresh.fit(X_train, y_train)
@@ -167,11 +171,19 @@ def test_fresh_a2_v8_retrain_is_equivalent_across_platforms():
 
     fresh_predictions = fresh.predict(X_test)
     served_predictions = served.predict(X_test)
+    fresh_probabilities = fresh.predict_proba(X_test)
+    served_probabilities = served.predict_proba(X_test)
+    np.testing.assert_allclose(
+        fresh_probabilities,
+        served_probabilities,
+        rtol=0.0,
+        atol=CROSS_PLATFORM_METRIC_TOLERANCE,
+    )
     disagreements = int(np.count_nonzero(fresh_predictions != served_predictions))
     assert disagreements <= MAX_CROSS_PLATFORM_LABEL_DISAGREEMENTS
 
     fresh_metrics = _classification_metrics(
-        y_test, fresh_predictions, fresh.predict_proba(X_test)[:, 1]
+        y_test, fresh_predictions, fresh_probabilities[:, 1]
     )
     expected = CONTRACT["expected_test_metrics"]
     for metric_name, expected_value in expected.items():
