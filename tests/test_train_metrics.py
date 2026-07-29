@@ -4,10 +4,10 @@ import json
 import numpy as np
 import pytest
 from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
 
 from ml import ARTIFACTS_DIR
 from ml.contract import load_assessment_contract, validate_dataset_files
+from ml.estimators import build_classifier
 from ml.features import FEATURE_ORDER, build_feature_matrix, load_raw
 from ml.predict import GRADE_LABELS, load_artifacts, predict_grade, predict_score
 
@@ -30,6 +30,7 @@ def test_classification_metrics_reproduce():
     # Must exactly match the submitted MLN601 A2 v7 balanced Decision Tree.
     m = _metrics()["classification"]
     expected = CONTRACT["expected_test_metrics"]
+    assert m["model"] == CONTRACT["estimator"]["type"]
     for metric_name in (
         "accuracy",
         "roc_auc",
@@ -84,7 +85,7 @@ def test_served_classifier_exactly_matches_fresh_a2_v7_retrain():
         random_state=CONTRACT["split"]["random_state"],
         stratify=y,
     )
-    fresh = DecisionTreeClassifier(**CONTRACT["estimator"]["params"])
+    fresh = build_classifier(CONTRACT["estimator"])
     fresh.fit(X_train, y_train)
     _, served, schema, _ = load_artifacts()
 
