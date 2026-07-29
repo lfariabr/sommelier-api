@@ -36,6 +36,10 @@ def test_model_info_reports_real_metrics():
     assert body["dataset_rows"] == 5320
     assert body["provenance"]["model_contract"] == CONTRACT["contract_version"]
     assert body["provenance"]["source_commit"] == CONTRACT["source_commit"]
+    assert (
+        body["provenance"]["source_selection_sha256"]
+        == CONTRACT["source_selection_sha256"]
+    )
 
 
 def test_predict_score_golden():
@@ -50,8 +54,8 @@ def test_predict_grade_probabilities_sum_to_one():
     body = r.json()
     assert body["grade"] == "low"
     assert body["label"] == 1
-    assert body["proba_high"] == pytest.approx(0.3501, abs=1e-4)
-    assert body["proba_low"] == pytest.approx(0.6499, abs=1e-4)
+    assert body["proba_high"] == pytest.approx(0.1681, abs=1e-4)
+    assert body["proba_low"] == pytest.approx(0.8319, abs=1e-4)
     assert abs(body["proba_high"] + body["proba_low"] - 1.0) < 1e-3
 
 

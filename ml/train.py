@@ -21,9 +21,11 @@ import sklearn
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
     accuracy_score,
+    balanced_accuracy_score,
     confusion_matrix,
     f1_score,
     mean_absolute_error,
+    precision_score,
     r2_score,
     recall_score,
     roc_auc_score,
@@ -46,13 +48,14 @@ LABELS = {
 
 
 def _validate_a2_metrics(actual: dict) -> None:
-    """Stop artifact generation unless the submitted A2 v7 result is reproduced."""
+    """Stop artifact generation unless the submitted A2 result is reproduced."""
     expected = CONTRACT["expected_test_metrics"]
+    contract_version = CONTRACT["contract_version"]
     for metric_name, expected_value in expected.items():
         if metric_name == "confusion_matrix":
             if actual[metric_name] != expected_value:
                 raise RuntimeError(
-                    "A2 v7 parity failure for confusion_matrix: "
+                    f"{contract_version} parity failure for confusion_matrix: "
                     f"expected {expected_value}, got {actual[metric_name]}"
                 )
             continue
@@ -60,7 +63,7 @@ def _validate_a2_metrics(actual: dict) -> None:
             actual[metric_name], expected_value, rel_tol=0.0, abs_tol=1e-12
         ):
             raise RuntimeError(
-                f"A2 v7 parity failure for {metric_name}: "
+                f"{contract_version} parity failure for {metric_name}: "
                 f"expected {expected_value}, got {actual[metric_name]}"
             )
 
@@ -71,7 +74,8 @@ def main() -> None:
     clf = build_classifier(CONTRACT["estimator"])
     if FEATURE_ORDER != CONTRACT["feature_order"]:
         raise RuntimeError(
-            "A2 v7 parity failure: the serving feature order differs from the "
+            f"{CONTRACT['contract_version']} parity failure: "
+            "the serving feature order differs from the "
             "submitted notebook"
         )
 
@@ -90,7 +94,8 @@ def main() -> None:
     )
     if observed_counts != expected_counts:
         raise RuntimeError(
-            f"A2 v7 dataset parity failure: expected {expected_counts}, "
+            f"{CONTRACT['contract_version']} dataset parity failure: "
+            f"expected {expected_counts}, "
             f"got {observed_counts}"
         )
     X = build_feature_matrix(df)
@@ -126,18 +131,21 @@ def main() -> None:
         random_state=RANDOM_STATE,
         stratify=y_clf,
     )
-    # Structure and class weighting mirror the model submitted in MLN601 A2 v7:
-    # the balanced tree passed all three screening gates (AUC / sensitivity /
-    # specificity >= 0.75 / 0.70 / 0.70 in training CV).
+    # Estimator and imbalance treatment mirror the approved assessment contract.
     clf.fit(Xtr2, ytr2)
     pred2 = clf.predict(Xte2)
     proba_low = clf.predict_proba(Xte2)[:, 1]  # class 1 = low
     tn, fp, fn, tp = confusion_matrix(yte2, pred2, labels=[0, 1]).ravel()
+    sensitivity_low = float(recall_score(yte2, pred2, pos_label=1))
+    specificity_high = float(tn / (tn + fp))
     clf_metrics = {
         "accuracy": float(accuracy_score(yte2, pred2)),
-        "sensitivity_low": float(recall_score(yte2, pred2, pos_label=1)),
-        "specificity_high": float(tn / (tn + fp)),
+        "precision_low": float(precision_score(yte2, pred2, pos_label=1)),
+        "sensitivity_low": sensitivity_low,
+        "specificity_high": specificity_high,
         "f1_low": float(f1_score(yte2, pred2, pos_label=1)),
+        "balanced_accuracy": float(balanced_accuracy_score(yte2, pred2)),
+        "g_mean": math.sqrt(sensitivity_low * specificity_high),
         "roc_auc": float(roc_auc_score(yte2, proba_low)),
         "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)},
     }
@@ -167,17 +175,21 @@ def main() -> None:
         },
     }
 
+    provenance = {
+        "model_contract": CONTRACT["contract_version"],
+        "assessment": CONTRACT["assessment"],
+        "submission_version": CONTRACT["submission_version"],
+        "source_repository": CONTRACT["source_repository"],
+        "source_commit": CONTRACT["source_commit"],
+        "submission_sha256": CONTRACT["submission_sha256"],
+        "source_metrics_sha256": CONTRACT["source_metrics_sha256"],
+        "dataset_sha256": CONTRACT["dataset"]["files"],
+    }
+    if "source_selection_sha256" in CONTRACT:
+        provenance["source_selection_sha256"] = CONTRACT["source_selection_sha256"]
+
     metrics = {
-        "provenance": {
-            "model_contract": CONTRACT["contract_version"],
-            "assessment": CONTRACT["assessment"],
-            "submission_version": CONTRACT["submission_version"],
-            "source_repository": CONTRACT["source_repository"],
-            "source_commit": CONTRACT["source_commit"],
-            "submission_sha256": CONTRACT["submission_sha256"],
-            "source_metrics_sha256": CONTRACT["source_metrics_sha256"],
-            "dataset_sha256": CONTRACT["dataset"]["files"],
-        },
+        "provenance": provenance,
         "sklearn_version": sklearn.__version__,
         "python_version": platform.python_version(),
         "trained_at_unix": int(time.time()),
