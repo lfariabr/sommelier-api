@@ -1,7 +1,7 @@
 """Reproduce the two MLN601 models from the raw UCI CSVs and serialize artifacts.
 
 A1 (regression):     RandomForestRegressor → predicts `quality` (continuous).
-A2 (classification): DecisionTreeClassifier → high (>=6) / low (<6).
+A2 (classification): contract-selected classifier → high (>=6) / low (<6).
 
 Deterministic (random_state=42). The models are RE-TRAINED here from the raw CSVs
 — never loaded from the graded notebooks — so the serving scikit-learn version is
@@ -30,10 +30,10 @@ from sklearn.metrics import (
     root_mean_squared_error,
 )
 from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
 
 from ml import ARTIFACTS_DIR
 from ml.contract import load_assessment_contract, validate_dataset_files
+from ml.estimators import build_classifier
 from ml.features import FEATURE_ORDER, build_feature_matrix, load_raw
 
 CONTRACT = load_assessment_contract()
@@ -127,7 +127,8 @@ def main() -> None:
     # Structure and class weighting mirror the model submitted in MLN601 A2 v7:
     # the balanced tree passed all three screening gates (AUC / sensitivity /
     # specificity >= 0.75 / 0.70 / 0.70 in training CV).
-    clf = DecisionTreeClassifier(**CONTRACT["estimator"]["params"])
+    classifier_type = CONTRACT["estimator"]["type"]
+    clf = build_classifier(CONTRACT["estimator"])
     clf.fit(Xtr2, ytr2)
     pred2 = clf.predict(Xte2)
     proba_low = clf.predict_proba(Xte2)[:, 1]  # class 1 = low
@@ -141,7 +142,7 @@ def main() -> None:
         "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)},
     }
     _validate_a2_metrics(clf_metrics)
-    print(f"A2 DecisionTreeClassifier  "
+    print(f"A2 {classifier_type}  "
           f"ACC={clf_metrics['accuracy']:.4f}  ROC_AUC={clf_metrics['roc_auc']:.4f}  "
           f"SENS={clf_metrics['sensitivity_low']:.4f}  SPEC={clf_metrics['specificity_high']:.4f}")
 
@@ -191,7 +192,7 @@ def main() -> None:
             "top_features": [[f, round(v, 4)] for f, v in reg_imp[:3]],
         },
         "classification": {
-            "model": "DecisionTreeClassifier",
+            "model": classifier_type,
             "params": CONTRACT["estimator"]["params"],
             "threshold": QUALITY_THRESHOLD,
             "labels": LABELS,
