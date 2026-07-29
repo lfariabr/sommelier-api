@@ -67,6 +67,8 @@ def _validate_a2_metrics(actual: dict) -> None:
 
 def main() -> None:
     validate_dataset_files()
+    classifier_type = CONTRACT["estimator"]["type"]
+    clf = build_classifier(CONTRACT["estimator"])
     if FEATURE_ORDER != CONTRACT["feature_order"]:
         raise RuntimeError(
             "A2 v7 parity failure: the serving feature order differs from the "
@@ -127,8 +129,6 @@ def main() -> None:
     # Structure and class weighting mirror the model submitted in MLN601 A2 v7:
     # the balanced tree passed all three screening gates (AUC / sensitivity /
     # specificity >= 0.75 / 0.70 / 0.70 in training CV).
-    classifier_type = CONTRACT["estimator"]["type"]
-    clf = build_classifier(CONTRACT["estimator"])
     clf.fit(Xtr2, ytr2)
     pred2 = clf.predict(Xte2)
     proba_low = clf.predict_proba(Xte2)[:, 1]  # class 1 = low
