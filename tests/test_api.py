@@ -88,6 +88,13 @@ def test_openapi_locks_public_routes_and_methods():
         assert set(paths[path]) == expected_methods
 
 
+def test_openapi_reports_v020():
+    schema = client.get("/openapi.json").json()
+
+    assert app.version == "0.2.0"
+    assert schema["info"]["version"] == "0.2.0"
+
+
 def test_prediction_endpoints_keep_request_and_response_models():
     """Clients keep using the same Pydantic models after prediction values change."""
     assert _schema_ref("/predict/score", "request").endswith("/WineFeatures")
@@ -133,12 +140,21 @@ def test_features_endpoint():
 
 def test_model_info_reports_real_metrics():
     r = client.get("/model/info")
+    assert r.status_code == 200
     body = r.json()
+    classification = body["classification"]
+
     assert body["regression"]["r2"] > 0.4
-    assert body["classification"]["roc_auc"] > 0.7
-    assert body["classification"]["sensitivity_low"] > 0.7
-    assert body["classification"]["specificity_high"] > 0.7
     assert body["dataset_rows"] == 5320
+    assert classification["model"] == CONTRACT["estimator"]["type"]
+    assert classification["params"] == CONTRACT["estimator"]["params"]
+    for metric_name, expected_value in CONTRACT["expected_test_metrics"].items():
+        if metric_name == "confusion_matrix":
+            assert classification[metric_name] == expected_value
+        else:
+            assert classification[metric_name] == pytest.approx(
+                expected_value, abs=1e-12
+            )
     assert body["provenance"]["model_contract"] == CONTRACT["contract_version"]
     assert body["provenance"]["source_commit"] == CONTRACT["source_commit"]
     assert (
