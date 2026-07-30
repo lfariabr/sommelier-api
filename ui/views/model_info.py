@@ -4,6 +4,11 @@ from __future__ import annotations
 import streamlit as st
 
 from ml.predict import load_artifacts
+from ui.model_card import (
+    class_weight_rationale,
+    classifier_caption,
+    v8_vs_v7_tradeoff,
+)
 
 
 def render() -> None:
@@ -28,7 +33,7 @@ def render() -> None:
             st.write(f"- {name} ({imp:.2f})")
     with right:
         st.subheader("Grade · classification")
-        st.caption(f"{clf['model']} · threshold quality ≥ {clf['threshold']} · class-weight balanced")
+        st.caption(classifier_caption(clf))
         st.metric("ROC-AUC", f"{clf['roc_auc']:.3f}")
         st.metric("Sensitivity (low caught)", f"{clf['sensitivity_low']:.3f}")
         st.metric("Specificity (high cleared)", f"{clf['specificity_high']:.3f}")
@@ -37,10 +42,9 @@ def render() -> None:
         for name, imp in clf["top_features"]:
             st.write(f"- {name} ({imp:.2f})")
 
+    st.info(class_weight_rationale())
+    st.warning(v8_vs_v7_tradeoff(clf))
     st.info(
         "These models predict **human taste-panel scores**, not an objective truth. "
         "Wine quality is subjective and the R² ceiling on this dataset is genuinely low. "
-        "The grade model is class-weight balanced on purpose: it trades some false alarms "
-        "for catching more genuinely low wines — the same operating choice approved in the "
-        "source assessment."
     )
