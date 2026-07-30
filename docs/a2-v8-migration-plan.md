@@ -1,6 +1,6 @@
 # Migration plan: serve the MLN601 A2 v8 approved classifier
 
-Status: implementation and UI complete; documentation and release in progress.
+Status: implementation and documentation complete; v0.2.0 release pending.
 Target release: `v0.2.0` (the served classification model changes).
 
 ## Why
@@ -35,7 +35,7 @@ Python 3.11.9) on the same dedup-then-split pipeline `ml/train.py` already uses.
 matches `outputs/finalist_test_metrics_v8.csv` to full float precision, confusion matrix
 included. No version negotiation is needed.
 
-| Test-set metric (n=1064) | v7 tree (served today) | v8 RF (approved) | Delta |
+| Test-set metric (n=1064) | v7 tree (served before migration) | v8 RF (approved) | Delta |
 |---|---|---|---|
 | ROC-AUC | 0.7923 | **0.8337** | +0.0414 |
 | Accuracy | 0.7284 | **0.7716** | +0.0432 |
@@ -68,7 +68,7 @@ this is a 20% increase in artifact weight, not a new class of problem. No Git LF
 read `predict` / `predict_proba` and echo `metrics.json`. The request and response
 schemas of every endpoint stay byte-identical. This is a model swap, not an API change.
 
-## Decisions needed before starting
+## Decisions recorded before implementation
 
 1. **Does the sensitivity drop change the product position?** The v8 model is better on
    four metrics and worse on the one the README argues matters most. Options: (a) adopt
@@ -113,12 +113,11 @@ approved model rather than merely the best-scoring one.
 
 ### 2. `ml/train.py`
 
-Before migration, `DecisionTreeClassifier` was hardcoded in both the import and the instantiation, and
-only `params` comes from the contract. That must become a dispatch on
-`contract["estimator"]["type"]`, otherwise the contract file documents a model the code
-does not actually build. Also update: module docstring, the "A2 v7" strings in the four
-parity `RuntimeError` messages, the comment above the classifier, the console print label,
-and `metrics["classification"]["model"]`.
+Before migration, `DecisionTreeClassifier` was hardcoded in both the import and the
+instantiation, and only `params` came from the contract. The implementation added a
+dispatch on `contract["estimator"]["type"]`; without it, the contract would have
+documented a model the code did not build. It also updated the module docstring, parity
+errors, classifier comment, console label and `metrics["classification"]["model"]`.
 
 Keep `n_jobs=1` for the classifier to match the notebook exactly, even though RF training
 is deterministic across `n_jobs`. Cheap insurance, and the parity test is the whole point.
