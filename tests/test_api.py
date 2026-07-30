@@ -9,6 +9,118 @@ from ml.contract import load_assessment_contract
 client = TestClient(app)
 CONTRACT = load_assessment_contract()
 
+EXPECTED_PATH_METHODS = {
+    "/health": {"get"},
+    "/features": {"get"},
+    "/model/info": {"get"},
+    "/predict/score": {"post"},
+    "/predict/grade": {"post"},
+    "/predict": {"post"},
+}
+
+EXPECTED_COMPONENT_SCHEMAS = {
+    "WineFeatures": {
+        "properties": {
+            "fixed_acidity": "number",
+            "volatile_acidity": "number",
+            "citric_acid": "number",
+            "residual_sugar": "number",
+            "chlorides": "number",
+            "free_sulfur_dioxide": "number",
+            "total_sulfur_dioxide": "number",
+            "density": "number",
+            "pH": "number",
+            "sulphates": "number",
+            "alcohol": "number",
+            "wine_type": "string",
+        },
+        "required": {
+            "fixed_acidity",
+            "volatile_acidity",
+            "citric_acid",
+            "residual_sugar",
+            "chlorides",
+            "free_sulfur_dioxide",
+            "total_sulfur_dioxide",
+            "density",
+            "pH",
+            "sulphates",
+            "alcohol",
+        },
+    },
+    "ScoreResponse": {
+        "properties": {"quality": "number"},
+        "required": {"quality"},
+    },
+    "GradeResponse": {
+        "properties": {
+            "grade": "string",
+            "label": "integer",
+            "proba_high": "number",
+            "proba_low": "number",
+        },
+        "required": {"grade", "label", "proba_high", "proba_low"},
+    },
+    "PredictResponse": {
+        "properties": {"score": "number", "grade": None},
+        "required": {"score", "grade"},
+    },
+}
+
+
+def _schema_ref(path: str, location: str) -> str:
+    operation = client.get("/openapi.json").json()["paths"][path]["post"]
+    if location == "request":
+        return operation["requestBody"]["content"]["application/json"]["schema"][
+            "$ref"
+        ]
+    return operation["responses"]["200"]["content"]["application/json"]["schema"][
+        "$ref"
+    ]
+
+
+def test_openapi_locks_public_routes_and_methods():
+    """The v0.2.0 model swap must not remove or rename public operations."""
+    paths = client.get("/openapi.json").json()["paths"]
+
+    assert set(paths) == set(EXPECTED_PATH_METHODS)
+    for path, expected_methods in EXPECTED_PATH_METHODS.items():
+        assert set(paths[path]) == expected_methods
+
+
+def test_openapi_reports_v020():
+    schema = client.get("/openapi.json").json()
+
+    assert app.version == "0.2.0"
+    assert schema["info"]["version"] == "0.2.0"
+
+
+def test_prediction_endpoints_keep_request_and_response_models():
+    """Clients keep using the same Pydantic models after prediction values change."""
+    assert _schema_ref("/predict/score", "request").endswith("/WineFeatures")
+    assert _schema_ref("/predict/score", "response").endswith("/ScoreResponse")
+    assert _schema_ref("/predict/grade", "request").endswith("/WineFeatures")
+    assert _schema_ref("/predict/grade", "response").endswith("/GradeResponse")
+    assert _schema_ref("/predict", "request").endswith("/WineFeatures")
+    assert _schema_ref("/predict", "response").endswith("/PredictResponse")
+
+
+def test_openapi_locks_prediction_field_names_and_types():
+    """Request and response keys and primitive types remain backward compatible."""
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+
+    for schema_name, expected in EXPECTED_COMPONENT_SCHEMAS.items():
+        schema = schemas[schema_name]
+        assert set(schema["properties"]) == set(expected["properties"])
+        assert set(schema["required"]) == expected["required"]
+        for field_name, expected_type in expected["properties"].items():
+            if expected_type is not None:
+                assert schema["properties"][field_name]["type"] == expected_type
+
+    assert schemas["PredictResponse"]["properties"]["grade"]["$ref"].endswith(
+        "/GradeResponse"
+    )
+
 
 def test_health():
     r = client.get("/health")
@@ -28,12 +140,21 @@ def test_features_endpoint():
 
 def test_model_info_reports_real_metrics():
     r = client.get("/model/info")
+    assert r.status_code == 200
     body = r.json()
+    classification = body["classification"]
+
     assert body["regression"]["r2"] > 0.4
-    assert body["classification"]["roc_auc"] > 0.7
-    assert body["classification"]["sensitivity_low"] > 0.7
-    assert body["classification"]["specificity_high"] > 0.7
     assert body["dataset_rows"] == 5320
+    assert classification["model"] == CONTRACT["estimator"]["type"]
+    assert classification["params"] == CONTRACT["estimator"]["params"]
+    for metric_name, expected_value in CONTRACT["expected_test_metrics"].items():
+        if metric_name == "confusion_matrix":
+            assert classification[metric_name] == expected_value
+        else:
+            assert classification[metric_name] == pytest.approx(
+                expected_value, abs=1e-12
+            )
     assert body["provenance"]["model_contract"] == CONTRACT["contract_version"]
     assert body["provenance"]["source_commit"] == CONTRACT["source_commit"]
     assert (

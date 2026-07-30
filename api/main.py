@@ -31,7 +31,7 @@ app = FastAPI(
         "POST 11 physicochemical readings + wine_type to get a predicted quality "
         "score (regression) and a high/low grade (classification)."
     ),
-    version="0.1.1",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
