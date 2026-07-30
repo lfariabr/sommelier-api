@@ -1,5 +1,54 @@
 # Release Notes
 
+## v0.2.0: A2 v8 approved Random Forest (2026-07-30)
+
+The classification lens now serves the model approved by the MLN601 Assessment 2 v8
+resubmission. Classification predictions and probabilities intentionally change; API
+request and response schemas remain compatible, and the A1 regression lens is unchanged.
+
+### Changed
+- Replaced the v7 balanced Decision Tree with
+  `RandomForestClassifier(n_estimators=200, max_depth=10, min_samples_leaf=1,
+  class_weight="balanced", random_state=42, n_jobs=1)`.
+- The source assessment compared 22 model-and-treatment runs across nine estimators,
+  plus one majority baseline. Original-distribution and fold-only SMOTE runs covered all
+  nine estimators; class weighting covered four eligible estimators.
+- Held-out classification metrics are now ROC-AUC 0.8337, accuracy 0.7716, sensitivity
+  0.7136, specificity 0.8063 and F1 0.7004. Against the served v7 tree, specificity gains
+  8.1 percentage points while sensitivity loses 2.0 points.
+- In lot-screening terms, the new operating point misses 8 additional low-quality lots
+  out of 398 and raises 54 fewer false alarms out of 666 on the same 1,064-row test set.
+- FastAPI metadata now reports version `0.2.0`. Every endpoint, request field, response
+  field, validation type and class-label meaning remains unchanged.
+- The Streamlit About and Model Card views now read the v8 estimator and metrics from the
+  committed artifact, separate class-weighting rationale from the v7-to-v8 comparison,
+  and disclose the sensitivity reduction visibly.
+- Local Streamlit and FastAPI inference are parity-tested for the example wine. Numeric
+  `wine_type` values from artifact examples are translated to the public API's
+  `"red"/"white"` schema instead of causing a silent fallback after a `422` response.
+
+### Provenance and parity
+- Contract: `mln601-a2-v8`.
+- Assessment source commit: `c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2`.
+- Submission SHA-256:
+  `b4aeca9b6ed0412d5855f1fa46a3afd4bc95173a8b71bdf3963fb728331dddd9`.
+- Held-out metrics SHA-256:
+  `e0860e301e5d416047de4451cdaefcb0818e6e5d057aad649f91fab482181d20`.
+- Selection summary SHA-256:
+  `a011aceb8fe8c9aaf686854483c3193dd9a731e3197bd957a6f99baa30a9043f`.
+- The committed serving artifact reproduces every submitted metric and confusion-matrix
+  count exactly. Fresh cross-platform retrains retain parameters and estimator seeds,
+  with measured bounds of at most two label differences, 0.005 per aggregate metric and
+  0.015 per predicted probability between the tested macOS arm64 and Linux x64 runs.
+
+### Unchanged
+- A1 `RandomForestRegressor` artifact, metrics and golden score prediction (`5.065`).
+- Public paths and methods for `/health`, `/features`, `/model/info`, `/predict/score`,
+  `/predict/grade` and `/predict`.
+- Class 1 remains low quality (`quality < 6`); class 0 remains high quality
+  (`quality >= 6`).
+- Per-lot SHAP explanations and probability calibration remain outside the current API.
+
 ## v0.1.1 — A2 v7 parity lock (2026-07-20)
 
 The classification serving path is now explicitly and mechanically tied to the final

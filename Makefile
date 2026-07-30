@@ -21,7 +21,7 @@ ui:  ## run the Streamlit app at http://localhost:8501
 test:  ## run the test suite
 	$(PY) -m pytest -q
 
-parity:  ## verify the served classifier against the submitted MLN601 A2 v7 contract
+parity:  ## verify the served classifier against the submitted MLN601 A2 v8 contract
 	$(PY) -m pytest -q tests/test_train_metrics.py tests/test_api.py
 
 lint:  ## ruff lint

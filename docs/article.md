@@ -12,9 +12,10 @@ two questions, two surfaces.
 ## Two lenses on the same wine
 
 The [UCI Wine Quality dataset](https://archive.ics.uci.edu/dataset/186/wine+quality)
-(Cortez et al., 2009) has 6,497 wines — 1,599 red, 4,898 white — each with 11
+(Cortez et al., 2009) has 6,497 raw rows, 1,599 red and 4,898 white, each with 11
 physicochemical measurements (acidity, residual sugar, sulphates, alcohol…) and a
-quality score from 0 to 10 assigned by human tasters.
+quality score from 0 to 10 assigned by human tasters. A leakage audit found 1,177 exact
+duplicates, so modelling uses 5,320 unique wines after deduplication and before splitting.
 
 You can ask that data two different questions:
 
@@ -24,7 +25,13 @@ You can ask that data two different questions:
 Same features, two lenses. I trained one model for each:
 
 - a `RandomForestRegressor` for the score, and
-- a tuned `DecisionTreeClassifier` for the grade.
+- a class-weighted `RandomForestClassifier` for the grade.
+
+The classifier was not selected from a single convenient run. Assessment 2 v8 compared
+22 model-and-treatment runs across nine estimators, plus one majority baseline. Every
+estimator was tested on the original distribution and with fold-only SMOTE; class
+weighting was also tested on the four estimators that support it. The approved forest
+cleared the predeclared ROC-AUC, sensitivity and specificity gates.
 
 ## The modelling (and one honest number)
 
@@ -39,21 +46,26 @@ Here's the whole path, from two CSVs to two saved models:
 flowchart LR
     R[winequality-red.csv] --> M[concat + engineer wine_type<br/>red=1, white=0]
     W[winequality-white.csv] --> M
-    M --> X[12-feature matrix<br/>6,497 wines]
+    M --> D[remove 1,177 exact duplicates]
+    D --> X[12-feature matrix<br/>5,320 unique wines]
     X --> S[train / test split<br/>80/20, seed 42]
     S --> RF[RandomForestRegressor<br/>quality score 0-10]
-    S --> DT[DecisionTreeClassifier<br/>high vs low, threshold 6]
+    S --> CF[RandomForestClassifier<br/>class-weight balanced, threshold 6]
     RF --> RJ[(regressor.joblib)]
-    DT --> CJ[(classifier.joblib)]
+    CF --> CJ[(classifier.joblib)]
 ```
 
-Here's the part most posts skip: **the regressor's R² is about 0.50.** It explains
-roughly half the variance in the scores. That's not a bug to hide — it's the nature of
-the problem. Wine quality is a *subjective human judgement*; there's a real ceiling on
-how well chemistry alone predicts a tasting panel. The classifier does better on its
-easier yes/no question — **ROC-AUC ≈ 0.81** — but the honest framing matters more than
-a vanity metric. (It's also where the project gets its name: it can bottle about half
-the lab; the other half is human.)
+Here's the part most posts skip: **the regressor's held-out R² is 0.415.** Chemistry
+explains a meaningful but limited share of the score variance. That's not a bug to hide:
+wine quality is a *subjective human judgement*, and chemistry alone has a real ceiling.
+The classifier reaches **ROC-AUC 0.8337**, accuracy 0.7716, sensitivity 0.7136,
+specificity 0.8063 and F1 0.7004 on the deduplicated held-out set.
+
+Those numbers also carry a real operating trade-off. Against the previously served v7
+tree on the same test rows, the v8 forest gains 8.1 percentage points of specificity and
+loses 2.0 points of sensitivity. In lot terms, it misses 8 additional low-quality lots
+out of 398 while raising 54 fewer false alarms out of 666. The gain is not presented as
+free.
 
 What the models *do* agree on is what matters most: **alcohol** and **volatile
 acidity** dominate both — high alcohol and low volatile acidity track with better wine.
@@ -109,9 +121,14 @@ def predict_endpoint(wine: WineFeatures):
   and if that API is cold, it *falls back to local* automatically and tells you so.
 
 One discipline ties it together: the training scikit-learn version is **pinned**, the
-artifacts are committed, and that same version is surfaced at `/model/info`. The joblib
-I trained on my laptop is bit-for-bit the joblib that serves in production. No
-"works-on-my-machine" drift.
+artifacts are committed, and that same version is surfaced at `/model/info`. The serving
+artifact reproduces the submitted metrics and confusion matrix exactly. Fresh retrains
+keep the same parameters and estimator seeds, with measured tolerances for the small
+numerical variation observed between macOS arm64 and Linux x64.
+
+The classifier is provenance-locked under contract `mln601-a2-v8` to assessment source
+commit `c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2`. The API exposes that provenance at
+`/health` and `/model/info` instead of asking readers to trust a model name in prose.
 
 ## Try it
 
@@ -121,26 +138,26 @@ I trained on my laptop is bit-for-bit the joblib that serves in production. No
 
 ## What's next — and what's *not* worth it
 
-v1 was about the full path from notebook to deployed service, not a perfect model. From
-here there's a real roadmap — but a good roadmap also says *no*. Here's how I'd weigh the
-obvious next steps:
+The current release is about the full path from notebook evidence to a parity-locked,
+deployed service, not a perfect model. From here there's a real roadmap — but a good
+roadmap also says *no*. Here's how I'd weigh the obvious next steps:
 
 | Next step | Worth it? | Why |
 |---|---|---|
 | **Log predictions to a DB** (SQLite → Postgres) | ✅ soon | Cheapest high-value add — a usage log gives analytics, drift monitoring, and a real-world dataset. SQLite is plenty to start. |
 | **More / better data** (other wine datasets & APIs) | ✅ highest leverage | The R² ceiling here is *data*-bound, not model-bound. More wines and richer features (price, region, vintage) beat any fancier algorithm. |
-| **SHAP explanations** | ✅ yes | Let the app say *why* a wine scored low — turns the black box into a teaching tool for a few lines of code. |
-| **Gradient boosting + probability calibration** | ✅ quick win | XGBoost/LightGBM usually edge out a random forest on tabular data; calibration makes a "73%" actually mean 73%. |
+| **Per-lot SHAP explanations** | ✅ yes | The assessment already contains global SHAP analysis; serving local explanations would let the app say why one lot was flagged. It is not part of the current API. |
+| **Probability calibration** | ✅ quick win | The current threshold and probabilities come directly from the assessment. Calibration should be evaluated before treating a displayed score as a calibrated likelihood. |
 | **Rate limiting** (e.g. slowapi) | ⚠️ once it has traffic | A public API needs it eventually to curb abuse and protect the free tier — but premature on day one. |
 | **Redis** | ⚠️ pairs with the above | Earns its keep only behind rate-limit counters or a cache shared across instances. Overkill for a single free dyno today. |
-| **Deep learning** | ⚠️ for learning, not accuracy | On ~6,500 rows of tabular data, trees almost always beat neural nets. A great DL *exercise* — not a way to move the metric. |
+| **Deep learning** | ⚠️ for learning, not accuracy | On 5,320 unique rows of tabular data, trees almost always beat neural nets. A useful DL exercise, but not the strongest route to improve this metric. |
 | **Auth + freemium** (5 free, then sign in) | ⚠️ only if productizing | Adds friction to a demo whose whole point is "try it instantly". Makes sense only if this becomes a real product. |
 | **More engineered features** | ⚠️ limited upside | The 11 chemical inputs are largely tapped out; interaction terms are cheap to try but won't break the data ceiling. |
 | **Email (Resend)** | ❌ not yet | No natural trigger — no accounts, no reports to send. A tool looking for a problem until a feature needs one. |
 
 The thread through that table: **more/better data and explainability beat fancier
-infrastructure.** The point of v1 wasn't the perfect model — it was the full path from a
-notebook to a deployed, typed, tested service. The half you can bottle.
+infrastructure.** The point was never a perfect model. It was the full path from a
+notebook to a deployed, typed, tested and auditable service. The half you can bottle.
 
 ## References & code
 
