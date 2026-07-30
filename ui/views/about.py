@@ -3,18 +3,23 @@ from __future__ import annotations
 
 import streamlit as st
 
+from ml.predict import load_artifacts
+from ui.model_card import classification_summary
+
 
 def render() -> None:
+    _, _, _, metrics = load_artifacts()
+    classification = classification_summary(metrics["classification"])
+
     st.title("ℹ️ About Sommelier")
     st.markdown(
-        """
+        f"""
 **Sommelier** asks the same wines two different questions (6,497 raw UCI rows,
 5,320 after removing exact duplicates):
 
 - **How good is this wine?** → a `RandomForestRegressor` predicts the quality score
   on a 0–10 scale (R² ≈ 0.41).
-- **Is this wine good?** → a class-weight-balanced `DecisionTreeClassifier` grades it
-  **high (≥6)** or **low (<6)** (ROC-AUC ≈ 0.79, sensitivity 0.73).
+- **Is this wine good?** → {classification}.
 
 Both read the same 12 inputs: 11 physicochemical measurements (acidity, sugar,
 sulphates, alcohol, …) plus a `wine_type` flag (red/white).
