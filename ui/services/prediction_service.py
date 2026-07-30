@@ -40,6 +40,8 @@ class PredictionService:
     def _via_api(feat_dict: dict, api_url: str) -> dict:
         # spaced feature names -> snake_case API payload
         payload = {k.replace(" ", "_"): v for k, v in feat_dict.items()}
+        if payload.get("wine_type") in {0, 1}:
+            payload["wine_type"] = {0: "white", 1: "red"}[payload["wine_type"]]
         resp = httpx.post(f"{api_url}/predict", json=payload, timeout=5.0)
         resp.raise_for_status()
         return resp.json()
