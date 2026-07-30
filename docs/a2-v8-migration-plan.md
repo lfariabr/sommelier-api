@@ -1,14 +1,16 @@
 # Migration plan: serve the MLN601 A2 v8 approved classifier
 
-Status: proposed, not started.
+Status: implementation and UI complete; documentation and release in progress.
 Target release: `v0.2.0` (the served classification model changes).
 
 ## Why
 
-The classification lens is parity-locked to the **A2 v7** submission, which approved a
-class-weight-balanced `DecisionTreeClassifier`. The A2 v8 resubmission replaced the
-single-model selection with a 22-row model matrix (9 estimators x 3 imbalance treatments)
-and approved a different model:
+At planning time, the classification lens was parity-locked to the **A2 v7** submission,
+which approved a class-weight-balanced `DecisionTreeClassifier`. The A2 v8 resubmission
+replaced the single-model selection with 22 model-and-treatment runs across nine
+estimators, plus one majority baseline. Original-distribution and SMOTE runs covered all
+nine estimators; class weighting covered four eligible estimators. It approved a different
+model:
 
 ```
 # outputs/selection_summary_v8.csv
@@ -19,9 +21,8 @@ best ensemble,Random Forest,Class weight
 approved,Random Forest,Class weight
 ```
 
-The repository therefore serves a model the source assessment no longer approves, while
-`/health` and `/model/info` assert `mln601-a2-v7` provenance. That is the defect: the
-provenance claim is accurate about v7 and stale about the assessment.
+That mismatch was the original defect. It is now resolved: the repository serves the v8
+forest, while `/health` and `/model/info` report `mln601-a2-v8` provenance.
 
 ## Verified facts, measured before planning
 
@@ -43,8 +44,8 @@ included. No version negotiation is needed.
 | Sensitivity (low) | **0.7337** | 0.7136 | -0.0201 |
 | Confusion (tn/fp/fn/tp) | 483/183/106/292 | 537/129/114/284 | |
 
-**Sensitivity goes down, and that changes the public story.** The current README sells the
-class weighting as "catching 73% of genuinely low wines instead of 59%". Under v8 it is
+**Sensitivity goes down, and that changes the public story.** At planning time, the README
+sold class weighting as "catching 73% of genuinely low wines instead of 59%". Under v8 it is
 71%. Still above the 0.70 screening gate, but the honest framing is different: the Random
 Forest wins by buying +8.1pp of specificity for -2.0pp of sensitivity. In lot-screening
 terms, it lets 8 more bad lots through out of 398 and raises 54 fewer false alarms out of
@@ -82,7 +83,10 @@ schemas of every endpoint stay byte-identical. This is a model swap, not an API 
 3. **Release number.** Proposing `v0.2.0` rather than `v0.1.2`: the served predictions
    change, which is a behavioural change for anyone calling `/predict/grade`.
 
-## Work order
+## Completed work order
+
+The notes below retain the pre-migration diagnosis as an implementation record. Statements
+about old code and copy describe the repository before issues #2 through #5 were completed.
 
 ### 1. Contract (`ml/assessment_contract.json`)
 
@@ -109,7 +113,7 @@ approved model rather than merely the best-scoring one.
 
 ### 2. `ml/train.py`
 
-Today `DecisionTreeClassifier` is hardcoded in both the import and the instantiation, and
+Before migration, `DecisionTreeClassifier` was hardcoded in both the import and the instantiation, and
 only `params` comes from the contract. That must become a dispatch on
 `contract["estimator"]["type"]`, otherwise the contract file documents a model the code
 does not actually build. Also update: module docstring, the "A2 v7" strings in the four
@@ -121,7 +125,7 @@ is deterministic across `n_jobs`. Cheap insurance, and the parity test is the wh
 
 ### 3. `ml/contract.py`
 
-Docstring and the two "A2 v7" references. Cosmetic but it is the file that defines what
+The docstring and two "A2 v7" references were updated because this file defines what
 parity means.
 
 ### 4. Retrain
