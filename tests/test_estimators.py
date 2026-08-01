@@ -1,9 +1,9 @@
-"""Unit tests for the contract-driven classifier allowlist."""
+"""Unit tests for the contract-driven estimator allowlists."""
 import pytest
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.tree import DecisionTreeClassifier
 
-from ml.estimators import build_classifier
+from ml.estimators import build_classifier, build_regressor
 
 
 def _assert_contract_params(classifier, expected: dict) -> None:
@@ -54,3 +54,29 @@ def test_rejects_classifier_outside_allowlist():
 def test_rejects_non_mapping_params():
     with pytest.raises(TypeError, match="field 'params' must be a mapping"):
         build_classifier({"type": "DecisionTreeClassifier", "params": None})
+
+
+def test_builds_current_random_forest_regressor_contract():
+    params = {
+        "n_estimators": 400,
+        "max_depth": None,
+        "random_state": 42,
+        "n_jobs": -1,
+    }
+
+    regressor = build_regressor(
+        {"type": "RandomForestRegressor", "params": params}
+    )
+
+    assert isinstance(regressor, RandomForestRegressor)
+    _assert_contract_params(regressor, params)
+
+
+def test_rejects_regressor_outside_allowlist():
+    with pytest.raises(ValueError, match="Unsupported regressor type 'SVR'"):
+        build_regressor({"type": "SVR", "params": {}})
+
+
+def test_rejects_non_mapping_regressor_params():
+    with pytest.raises(TypeError, match="field 'params' must be a mapping"):
+        build_regressor({"type": "RandomForestRegressor", "params": None})

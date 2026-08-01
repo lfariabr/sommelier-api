@@ -18,7 +18,6 @@ import time
 
 import joblib
 import sklearn
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
@@ -34,11 +33,17 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 
 from ml import ARTIFACTS_DIR
-from ml.contract import load_assessment_contract, validate_dataset_files
-from ml.estimators import build_classifier
+from ml.contract import (
+    load_assessment_contract,
+    load_regression_contract,
+    validate_contract_compatibility,
+    validate_dataset_files,
+)
+from ml.estimators import build_classifier, build_regressor
 from ml.features import FEATURE_ORDER, build_feature_matrix, load_raw
 
 CONTRACT = load_assessment_contract()
+REGRESSION_CONTRACT = load_regression_contract()
 RANDOM_STATE = CONTRACT["split"]["random_state"]
 QUALITY_THRESHOLD = CONTRACT["target"]["quality_threshold"]
 LABELS = {
@@ -68,9 +73,29 @@ def _validate_a2_metrics(actual: dict) -> None:
             )
 
 
+def _validate_regression_metrics(actual: dict) -> None:
+    """Stop artifact generation unless the serving adaptation is reproduced."""
+    expected = REGRESSION_CONTRACT["serving_adaptation"][
+        "expected_test_metrics"
+    ]
+    contract_version = REGRESSION_CONTRACT["contract_version"]
+    for metric_name, expected_value in expected.items():
+        if not math.isclose(
+            actual[metric_name], expected_value, rel_tol=0.0, abs_tol=1e-12
+        ):
+            raise RuntimeError(
+                f"{contract_version} parity failure for {metric_name}: "
+                f"expected {expected_value}, got {actual[metric_name]}"
+            )
+
+
 def main() -> None:
+    validate_contract_compatibility()
     validate_dataset_files()
     classifier_type = CONTRACT["estimator"]["type"]
+    regression_serving = REGRESSION_CONTRACT["serving_adaptation"]
+    regressor_type = regression_serving["estimator"]["type"]
+    reg = build_regressor(regression_serving["estimator"])
     clf = build_classifier(CONTRACT["estimator"])
     if FEATURE_ORDER != CONTRACT["feature_order"]:
         raise RuntimeError(
@@ -98,6 +123,16 @@ def main() -> None:
             f"expected {expected_counts}, "
             f"got {observed_counts}"
         )
+    regression_counts = (
+        REGRESSION_CONTRACT["dataset"]["raw_rows"],
+        regression_serving["duplicates_removed"],
+        regression_serving["model_rows"],
+    )
+    if observed_counts != regression_counts:
+        raise RuntimeError(
+            f"{REGRESSION_CONTRACT['contract_version']} dataset parity failure: "
+            f"expected {regression_counts}, got {observed_counts}"
+        )
     X = build_feature_matrix(df)
     n_rows = len(df)
     print(f"Loaded {raw_rows} wines, removed {duplicates_removed} exact duplicates "
@@ -106,11 +141,12 @@ def main() -> None:
 
     # ---- A1: regression (predict the score) ----
     y_reg = df["quality"]
+    regression_split = regression_serving["split"]
     Xtr, Xte, ytr, yte = train_test_split(
-        X, y_reg, test_size=0.20, random_state=RANDOM_STATE
-    )
-    reg = RandomForestRegressor(
-        n_estimators=400, max_depth=None, random_state=RANDOM_STATE, n_jobs=-1
+        X,
+        y_reg,
+        test_size=regression_split["test_size"],
+        random_state=regression_split["random_state"],
     )
     reg.fit(Xtr, ytr)
     pred = reg.predict(Xte)
@@ -119,7 +155,17 @@ def main() -> None:
         "mae": float(mean_absolute_error(yte, pred)),
         "rmse": float(root_mean_squared_error(yte, pred)),
     }
-    print(f"A1 RandomForestRegressor   "
+    _validate_regression_metrics(reg_metrics)
+    golden_prediction = float(reg.predict(X.iloc[[0]])[0])
+    expected_golden = regression_serving["golden_prediction"]
+    if not math.isclose(
+        golden_prediction, expected_golden, rel_tol=0.0, abs_tol=1e-12
+    ):
+        raise RuntimeError(
+            f"{REGRESSION_CONTRACT['contract_version']} golden prediction "
+            f"failure: expected {expected_golden}, got {golden_prediction}"
+        )
+    print(f"A1-derived {regressor_type}   "
           f"R2={reg_metrics['r2']:.4f}  MAE={reg_metrics['mae']:.4f}  RMSE={reg_metrics['rmse']:.4f}")
 
     # ---- A2: classification (grade high/low) ----
@@ -198,8 +244,37 @@ def main() -> None:
         "dataset_rows": n_rows,
         "random_state": RANDOM_STATE,
         "regression": {
-            "model": "RandomForestRegressor",
-            "params": {"n_estimators": 400, "max_depth": None, "random_state": RANDOM_STATE},
+            "model": regressor_type,
+            "params": regression_serving["estimator"]["params"],
+            "provenance": {
+                "model_contract": REGRESSION_CONTRACT["contract_version"],
+                "assessment": REGRESSION_CONTRACT["assessment"],
+                "submission_version": REGRESSION_CONTRACT["submission_version"],
+                "relationship": REGRESSION_CONTRACT["relationship"],
+                "source_repository": REGRESSION_CONTRACT["source_repository"],
+                "source_commit": REGRESSION_CONTRACT["source_commit"],
+                "submission_sha256": REGRESSION_CONTRACT["submission_sha256"],
+                "source_metrics_sha256": REGRESSION_CONTRACT[
+                    "source_metrics_sha256"
+                ],
+                "submitted_protocol": {
+                    "row_policy": REGRESSION_CONTRACT["submitted_protocol"][
+                        "row_policy"
+                    ],
+                    "model_rows": REGRESSION_CONTRACT["submitted_protocol"][
+                        "model_rows"
+                    ],
+                    "test_metrics": REGRESSION_CONTRACT["submitted_protocol"][
+                        "expected_test_metrics"
+                    ],
+                },
+                "serving_adaptation": {
+                    "reason": regression_serving["reason"],
+                    "row_policy": regression_serving["row_policy"],
+                    "duplicates_removed": regression_serving["duplicates_removed"],
+                    "model_rows": regression_serving["model_rows"],
+                },
+            },
             **reg_metrics,
             "top_features": [[f, round(v, 4)] for f, v in reg_imp[:3]],
         },

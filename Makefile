@@ -21,8 +21,8 @@ ui:  ## run the Streamlit app at http://localhost:8501
 test:  ## run the test suite
 	$(PY) -m pytest -q
 
-parity:  ## verify the served classifier against the submitted MLN601 A2 v8 contract
-	$(PY) -m pytest -q tests/test_train_metrics.py tests/test_api.py
+parity:  ## verify A1 regression lineage and A2 v8 classifier parity contracts
+	$(PY) -m pytest -q tests/test_regression_contract.py tests/test_train_metrics.py tests/test_api.py
 
 lint:  ## ruff lint
 	$(VENV)/bin/ruff check .

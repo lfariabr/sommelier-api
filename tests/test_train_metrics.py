@@ -4,30 +4,33 @@ import math
 
 import numpy as np
 import pytest
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
     confusion_matrix,
     f1_score,
+    mean_absolute_error,
     precision_score,
+    r2_score,
     recall_score,
     roc_auc_score,
+    root_mean_squared_error,
 )
 from sklearn.model_selection import train_test_split
 
 from ml import ARTIFACTS_DIR
-from ml.contract import load_assessment_contract, validate_dataset_files
+from ml.contract import (
+    load_assessment_contract,
+    load_regression_contract,
+    validate_dataset_files,
+)
 from ml.estimators import build_classifier
 from ml.features import FEATURE_ORDER, build_feature_matrix, load_raw
 from ml.predict import GRADE_LABELS, load_artifacts, predict_grade, predict_score
 
 CONTRACT = load_assessment_contract()
-EXPECTED_REGRESSION_METRICS = {
-    "r2": 0.41459084153850323,
-    "mae": 0.5096052631578948,
-    "rmse": 0.6634399807689515,
-}
+REGRESSION_CONTRACT = load_regression_contract()
 # macOS arm64 and Linux x64 selected one neighboring RF split differently in CI.
 # Keep the published artifact exact while bounding fresh-retrain platform variance.
 CROSS_PLATFORM_METRIC_TOLERANCE = 0.005
@@ -54,6 +57,20 @@ def _classification_split():
         test_size=CONTRACT["split"]["test_size"],
         random_state=CONTRACT["split"]["random_state"],
         stratify=y,
+    )
+
+
+def _regression_split():
+    """Recreate the A1-derived production adaptation's held-out split."""
+    protocol = REGRESSION_CONTRACT["serving_adaptation"]
+    df = load_raw().drop_duplicates().reset_index(drop=True)
+    X = build_feature_matrix(df)
+    y = df["quality"]
+    return train_test_split(
+        X,
+        y,
+        test_size=protocol["split"]["test_size"],
+        random_state=protocol["split"]["random_state"],
     )
 
 
@@ -84,8 +101,33 @@ def _classification_metrics(y_true, predictions, proba_low):
 
 def test_regression_metrics_reproduce():
     m = _metrics()["regression"]
-    for metric_name, expected_value in EXPECTED_REGRESSION_METRICS.items():
+    expected = REGRESSION_CONTRACT["serving_adaptation"][
+        "expected_test_metrics"
+    ]
+    for metric_name, expected_value in expected.items():
         assert m[metric_name] == pytest.approx(expected_value, abs=1e-12)
+
+
+def test_served_regressor_exactly_reproduces_serving_contract():
+    _, X_test, _, y_test = _regression_split()
+    served, _, schema, _ = load_artifacts()
+    protocol = REGRESSION_CONTRACT["serving_adaptation"]
+
+    assert isinstance(served, RandomForestRegressor)
+    served_params = served.get_params()
+    assert {
+        name: served_params[name] for name in protocol["estimator"]["params"]
+    } == protocol["estimator"]["params"]
+    assert schema["feature_order"] == REGRESSION_CONTRACT["feature_order"]
+
+    predictions = served.predict(X_test)
+    actual = {
+        "r2": float(r2_score(y_test, predictions)),
+        "mae": float(mean_absolute_error(y_test, predictions)),
+        "rmse": float(root_mean_squared_error(y_test, predictions)),
+    }
+    for metric_name, expected_value in protocol["expected_test_metrics"].items():
+        assert actual[metric_name] == pytest.approx(expected_value, abs=1e-12)
 
 
 def test_classification_metrics_reproduce():
@@ -127,6 +169,19 @@ def test_metrics_metadata_present():
     assert provenance["source_metrics_sha256"] == CONTRACT["source_metrics_sha256"]
     assert provenance["source_selection_sha256"] == CONTRACT["source_selection_sha256"]
     assert provenance["dataset_sha256"] == CONTRACT["dataset"]["files"]
+
+    regression = m["regression"]
+    regression_provenance = regression["provenance"]
+    assert regression["params"] == REGRESSION_CONTRACT["serving_adaptation"][
+        "estimator"
+    ]["params"]
+    assert regression_provenance["model_contract"] == REGRESSION_CONTRACT[
+        "contract_version"
+    ]
+    assert regression_provenance["relationship"] == "assessment_derived"
+    assert regression_provenance["source_commit"] == REGRESSION_CONTRACT[
+        "source_commit"
+    ]
 
 
 def test_raw_dataset_matches_submission_hashes():
