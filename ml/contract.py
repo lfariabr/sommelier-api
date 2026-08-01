@@ -1,4 +1,4 @@
-"""MLN601 Assessment 2 parity contract and validation helpers."""
+"""MLN601 assessment contracts and validation helpers."""
 from __future__ import annotations
 
 import hashlib
@@ -8,13 +8,37 @@ from pathlib import Path
 
 from ml import DATA_DIR
 
-CONTRACT_PATH = Path(__file__).with_name("assessment_contract.json")
+CLASSIFICATION_CONTRACT_PATH = Path(__file__).with_name("assessment_contract.json")
+REGRESSION_CONTRACT_PATH = Path(__file__).with_name("regression_contract.json")
 
 
 @lru_cache(maxsize=1)
 def load_assessment_contract() -> dict:
     """Return the checked-in contract for the submitted A2 classifier."""
-    return json.loads(CONTRACT_PATH.read_text())
+    return json.loads(CLASSIFICATION_CONTRACT_PATH.read_text())
+
+
+@lru_cache(maxsize=1)
+def load_regression_contract() -> dict:
+    """Return the A1 source protocol and its production adaptation."""
+    return json.loads(REGRESSION_CONTRACT_PATH.read_text())
+
+
+def validate_contract_compatibility() -> None:
+    """Ensure both model contracts describe the same input data and features."""
+    classification = load_assessment_contract()
+    regression = load_regression_contract()
+    if regression["relationship"] != "assessment_derived":
+        raise ValueError("Regression contract must declare assessment_derived lineage")
+    if regression["dataset"]["files"] != classification["dataset"]["files"]:
+        raise ValueError("Regression and classification dataset hashes differ")
+    if regression["feature_order"] != classification["feature_order"]:
+        raise ValueError("Regression and classification feature order differs")
+
+    raw_rows = regression["dataset"]["raw_rows"]
+    serving = regression["serving_adaptation"]
+    if raw_rows - serving["duplicates_removed"] != serving["model_rows"]:
+        raise ValueError("Regression serving row counts are inconsistent")
 
 
 def sha256_file(path: Path) -> str:
