@@ -4,10 +4,11 @@ from fastapi.testclient import TestClient
 
 from api.main import app
 from api.schemas import EXAMPLE_WINE
-from ml.contract import load_assessment_contract
+from ml.contract import load_assessment_contract, load_regression_contract
 
 client = TestClient(app)
 CONTRACT = load_assessment_contract()
+REGRESSION_CONTRACT = load_regression_contract()
 
 EXPECTED_PATH_METHODS = {
     "/health": {"get"},
@@ -88,11 +89,11 @@ def test_openapi_locks_public_routes_and_methods():
         assert set(paths[path]) == expected_methods
 
 
-def test_openapi_reports_v020():
+def test_openapi_reports_v021():
     schema = client.get("/openapi.json").json()
 
-    assert app.version == "0.2.0"
-    assert schema["info"]["version"] == "0.2.0"
+    assert app.version == "0.2.1"
+    assert schema["info"]["version"] == "0.2.1"
 
 
 def test_prediction_endpoints_keep_request_and_response_models():
@@ -130,6 +131,10 @@ def test_health():
     assert body["sklearn_version"]
     assert body["model_contract"] == CONTRACT["contract_version"]
     assert body["source_commit"] == CONTRACT["source_commit"]
+    assert body["model_contracts"] == {
+        "regression": REGRESSION_CONTRACT["contract_version"],
+        "classification": CONTRACT["contract_version"],
+    }
 
 
 def test_features_endpoint():
@@ -142,9 +147,10 @@ def test_model_info_reports_real_metrics():
     r = client.get("/model/info")
     assert r.status_code == 200
     body = r.json()
+    regression = body["regression"]
     classification = body["classification"]
 
-    assert body["regression"]["r2"] > 0.4
+    assert regression["r2"] > 0.4
     assert body["dataset_rows"] == 5320
     assert classification["model"] == CONTRACT["estimator"]["type"]
     assert classification["params"] == CONTRACT["estimator"]["params"]
@@ -160,6 +166,15 @@ def test_model_info_reports_real_metrics():
     assert (
         body["provenance"]["source_selection_sha256"]
         == CONTRACT["source_selection_sha256"]
+    )
+    assert classification["provenance"] == body["provenance"]
+    assert classification["provenance"]["relationship"] == "submission_exact"
+    assert regression["provenance"]["model_contract"] == REGRESSION_CONTRACT[
+        "contract_version"
+    ]
+    assert regression["provenance"]["relationship"] == "assessment_derived"
+    assert regression["provenance"]["submitted_protocol"]["test_metrics"] == (
+        REGRESSION_CONTRACT["submitted_protocol"]["expected_test_metrics"]
     )
 
 

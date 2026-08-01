@@ -225,6 +225,7 @@ def main() -> None:
         "model_contract": CONTRACT["contract_version"],
         "assessment": CONTRACT["assessment"],
         "submission_version": CONTRACT["submission_version"],
+        "relationship": "submission_exact",
         "source_repository": CONTRACT["source_repository"],
         "source_commit": CONTRACT["source_commit"],
         "submission_sha256": CONTRACT["submission_sha256"],
@@ -281,6 +282,7 @@ def main() -> None:
         "classification": {
             "model": classifier_type,
             "params": CONTRACT["estimator"]["params"],
+            "provenance": provenance,
             "threshold": QUALITY_THRESHOLD,
             "labels": LABELS,
             **clf_metrics,

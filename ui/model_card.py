@@ -1,7 +1,51 @@
-"""Pure presentation helpers for the classification model card."""
+"""Pure presentation helpers for model provenance and trade-offs."""
 from __future__ import annotations
 
 V7_CONFUSION_MATRIX = {"tn": 483, "fp": 183, "fn": 106, "tp": 292}
+
+
+def regression_caption(regression: dict) -> str:
+    """Describe the serving regressor and its lineage contract."""
+    provenance = regression["provenance"]
+    return (
+        f"{regression['model']} | A1-derived production retrain | "
+        f"contract {provenance['model_contract']}"
+    )
+
+
+def regression_lineage_table(regression: dict) -> list[dict[str, str]]:
+    """Compare submitted A1 evidence with the deduplicated serving protocol."""
+    provenance = regression["provenance"]
+    submitted = provenance["submitted_protocol"]
+    submitted_metrics = submitted["test_metrics"]
+    serving = provenance["serving_adaptation"]
+    return [
+        {
+            "Protocol": "A1 submitted",
+            "Rows": f"{submitted['model_rows']:,}",
+            "R²": f"{submitted_metrics['r2']:.3f}",
+            "MAE": f"{submitted_metrics['mae']:.3f}",
+            "RMSE": f"{submitted_metrics['rmse']:.3f}",
+        },
+        {
+            "Protocol": "Production serving",
+            "Rows": f"{serving['model_rows']:,}",
+            "R²": f"{regression['r2']:.3f}",
+            "MAE": f"{regression['mae']:.3f}",
+            "RMSE": f"{regression['rmse']:.3f}",
+        },
+    ]
+
+
+def regression_lineage_note(regression: dict) -> str:
+    """Explain why serving metrics intentionally differ from submitted A1."""
+    adaptation = regression["provenance"]["serving_adaptation"]
+    return (
+        f"Production removes {adaptation['duplicates_removed']:,} exact duplicates "
+        "before splitting, preventing duplicate leakage across train and test data. "
+        "A1 was not resubmitted under this corrected protocol: the serving regressor "
+        "is assessment-derived and lineage-locked, not submission-exact."
+    )
 
 
 def classifier_caption(classification: dict) -> str:

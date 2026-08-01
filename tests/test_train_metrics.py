@@ -169,6 +169,7 @@ def test_metrics_metadata_present():
     assert provenance["source_metrics_sha256"] == CONTRACT["source_metrics_sha256"]
     assert provenance["source_selection_sha256"] == CONTRACT["source_selection_sha256"]
     assert provenance["dataset_sha256"] == CONTRACT["dataset"]["files"]
+    assert provenance["relationship"] == "submission_exact"
 
     regression = m["regression"]
     regression_provenance = regression["provenance"]
@@ -182,6 +183,7 @@ def test_metrics_metadata_present():
     assert regression_provenance["source_commit"] == REGRESSION_CONTRACT[
         "source_commit"
     ]
+    assert m["classification"]["provenance"] == provenance
 
 
 def test_raw_dataset_matches_submission_hashes():
