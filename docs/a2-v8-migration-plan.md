@@ -1,7 +1,10 @@
 # Migration plan: serve the MLN601 A2 v8 approved classifier
 
-Status: implementation and documentation complete; v0.2.0 release pending.
+Status: complete; v0.2.0 released and production-verified on 2026-07-30.
 Target release: `v0.2.0` (the served classification model changes).
+
+Follow-up: v0.2.1 adds a separate A1 regression lineage contract. It does not alter the
+A2 v8 classifier or this historical migration decision.
 
 ## Why
 
