@@ -3,6 +3,7 @@
     "model_contract": "mln601-a2-v8",
     "assessment": "MLN601 Assessment 2",
     "submission_version": "v8",
+    "relationship": "submission_exact",
     "source_repository": "https://github.com/lfariabr/masters-swe-ai",
     "source_commit": "c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2",
     "submission_sha256": "b4aeca9b6ed0412d5855f1fa46a3afd4bc95173a8b71bdf3963fb728331dddd9",
@@ -15,7 +16,7 @@
   },
   "sklearn_version": "1.9.0",
   "python_version": "3.11.9",
-  "trained_at_unix": 1785611547,
+  "trained_at_unix": 1785611832,
   "raw_rows": 6497,
   "duplicates_removed": 1177,
   "dataset_rows": 5320,
@@ -80,6 +81,21 @@
       "class_weight": "balanced",
       "random_state": 42,
       "n_jobs": 1
+    },
+    "provenance": {
+      "model_contract": "mln601-a2-v8",
+      "assessment": "MLN601 Assessment 2",
+      "submission_version": "v8",
+      "relationship": "submission_exact",
+      "source_repository": "https://github.com/lfariabr/masters-swe-ai",
+      "source_commit": "c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2",
+      "submission_sha256": "b4aeca9b6ed0412d5855f1fa46a3afd4bc95173a8b71bdf3963fb728331dddd9",
+      "source_metrics_sha256": "e0860e301e5d416047de4451cdaefcb0818e6e5d057aad649f91fab482181d20",
+      "dataset_sha256": {
+        "winequality-red.csv": "4a402cf041b025d4566d954c3b9ba8635a3a8a01e039005d97d6a710278cf05e",
+        "winequality-white.csv": "76c3f809815c17c07212622f776311faeb31e87610d52c26d87d6e361b169836"
+      },
+      "source_selection_sha256": "a011aceb8fe8c9aaf686854483c3193dd9a731e3197bd957a6f99baa30a9043f"
     },
     "threshold": 6,
     "labels": {
