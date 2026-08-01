@@ -12,8 +12,8 @@
 
 | Lens | Question | Model | Headline metric |
 |---|---|---|---|
-| **Score** (regression) | *How good, on a 0–10 scale?* | `RandomForestRegressor` | R² **0.41**, MAE **0.51** |
-| **Grade** (classification) | *High (≥6) or low (<6)?* | class-weighted `RandomForestClassifier` | ROC-AUC **0.834**, sensitivity **0.714** |
+| **Score** (regression) | *How good, on a 0–10 scale?* | A1-derived `RandomForestRegressor` | R² **0.41**, MAE **0.51** |
+| **Grade** (classification) | *High (≥6) or low (<6)?* | A2-exact class-weighted `RandomForestClassifier` | ROC-AUC **0.834**, sensitivity **0.714** |
 
 Both read the same 12 features (11 physicochemical measurements + an engineered
 `wine_type` flag) and are re-trained deterministically from the raw CSVs, after
@@ -47,7 +47,7 @@ to local automatically if the API is cold.
 make install     # venv (Python 3.11.9) + pinned deps
 make train       # reproduce both models → ml/artifacts/
 make test        # pytest (feature contract, metric reproduction, API, UI fallback)
-make parity      # MLN601 A2 v8 artifact and cross-platform retrain parity checks
+make parity      # A1 regression lineage + A2 v8 classifier parity checks
 make api         # FastAPI at http://localhost:8000/docs
 make ui          # Streamlit tasting-room at http://localhost:8501
 ```
@@ -56,7 +56,7 @@ make ui          # Streamlit tasting-room at http://localhost:8501
 
 | Method | Path | Returns |
 |---|---|---|
-| `GET` | `/health` | status + scikit-learn version + A2 model contract/source commit |
+| `GET` | `/health` | status + scikit-learn version + both model contract versions |
 | `GET` | `/features` | input schema + valid range per feature |
 | `GET` | `/model/info` | both models: params, real training metrics, top features |
 | `POST` | `/predict/score` | `{ "quality": 5.8 }` |
@@ -69,7 +69,9 @@ make ui          # Streamlit tasting-room at http://localhost:8501
   raw rows; 1,177 exact duplicates removed before the split → **5,320 unique wines**.
 - **Features (12):** fixed/volatile acidity, citric acid, residual sugar, chlorides,
   free/total SO₂, density, pH, sulphates, alcohol, `wine_type` (red=1, white=0).
-- **Score model:** `RandomForestRegressor(n_estimators=400, random_state=42)` → R² 0.41, MAE 0.51, RMSE 0.66.
+- **Score model:** `RandomForestRegressor(n_estimators=400, random_state=42)` → R² 0.41,
+  MAE 0.51, RMSE 0.66. It is an A1-derived production retrain on deduplicated data,
+  not the submitted A1 artifact.
 - **Grade model:** `RandomForestClassifier(n_estimators=200, max_depth=10,
   min_samples_leaf=1, class_weight="balanced", random_state=42, n_jobs=1)`, threshold
   quality ≥ 6. Held-out results: ROC-AUC 0.8337, accuracy 0.7716, sensitivity 0.7136,
@@ -85,11 +87,11 @@ make ui          # Streamlit tasting-room at http://localhost:8501
   that treatment rationale is separate from the v7-to-v8 model comparison.
 - **Honesty:** these models predict **human taste-panel scores**, not an objective truth.
   Wine quality is subjective and the performance ceiling on this dataset is genuinely low.
-- **Reproducibility:** the committed serving artifact reproduces every submitted metric and
-  confusion-matrix count exactly. A fresh retrain keeps the same parameters and estimator
-  seeds; bounded prediction and probability tolerances account for measured numerical
-  variation between macOS arm64 and Linux x64. The real artifact metrics are surfaced live
-  at `GET /model/info`.
+- **Reproducibility:** A2 classification is submission-exact. A1 regression reproduces both
+  the submitted 6,497-row final-estimator result and the corrected 5,320-row serving
+  adaptation, without claiming they are the same evaluation. Fresh retrains use bounded
+  cross-platform tolerances. The real artifact metrics and model-specific provenance are
+  surfaced live at `GET /model/info`.
 
 ### v2: the leakage audit
 
@@ -105,25 +107,34 @@ was corrected. A2 v8 subsequently changed the classifier and raised its ROC-AUC 
 ## Provenance
 
 The two models originate in the author's [Master of Software Engineering (AI)
-coursework](https://github.com/lfariabr/masters-swe-ai) (MLN601 — regression +
-classification). The served classifier is locked to the submitted **Assessment 2 v8**
-notebook at source commit `c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2` under contract
-`mln601-a2-v8`. The submission SHA-256 is
-`b4aeca9b6ed0412d5855f1fa46a3afd4bc95173a8b71bdf3963fb728331dddd9`;
-the held-out metrics SHA-256 is
-`e0860e301e5d416047de4451cdaefcb0818e6e5d057aad649f91fab482181d20`;
-and the selection summary SHA-256 is
-`a011aceb8fe8c9aaf686854483c3193dd9a731e3197bd957a6f99baa30a9043f`.
-`ml/assessment_contract.json` also records the raw-dataset hashes, feature order,
-target semantics, split, estimator parameters, exact metrics and confusion matrix.
+coursework](https://github.com/lfariabr/masters-swe-ai) (MLN601 regression and
+classification), but they provide different guarantees:
+
+| Lens | Contract | Relationship to assessment |
+|---|---|---|
+| Regression | `mln601-a1-derived-v1` | Reproduces the submitted protocol and separately locks the deduplicated serving adaptation |
+| Classification | `mln601-a2-v8` | Reproduces the submitted A2 v8 estimator, metrics and confusion matrix exactly |
+
+The A1 lineage contract points to source commit
+`93b39df59185126c5a40ae6e395a4cdc8d1d50aa`, submission SHA-256
+`4db8def424459265b9283eb5d20b0f529a75aa6af3ab4f2530c47d876e46640a` and metrics
+SHA-256 `358f9e6b009a08e9f5eeb4294a36b7338a42648ff0fe29d8c5ae2a176d8bcca2`.
+The submitted protocol used 6,497 rows and reported R² 0.5002, MAE 0.4364 and RMSE
+0.6075. Production removes 1,177 exact duplicates before splitting and reports R²
+0.4146, MAE 0.5096 and RMSE 0.6634. A1 was not resubmitted under that adaptation.
+
+The A2 contract points to source commit
+`c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2` and records submission, metrics and
+selection hashes alongside data identity, feature order, target semantics, split,
+estimator parameters and exact held-out evidence.
 
 This repository remains an independent **serving layer**: it contains no assessment
 notebooks, reports, or identifying data. `make train` rebuilds from the public CSVs and
-refuses to write artifacts unless the A2 v8 submitted metrics are reproduced exactly in
-the canonical environment. `make parity` checks the committed artifact exactly and then
-compares a fresh cross-platform retrain using the measured portability bounds. The
-notebook's SHAP analysis documents model behaviour, but per-lot SHAP explanations and
-probability calibration are intentionally outside the current API contract.
+refuses to write artifacts unless both contracts reproduce their declared serving
+evidence in the canonical environment. `make parity` also reconstructs the submitted A1
+final-estimator protocol and checks fresh cross-platform retrains using measured bounds.
+The A2 notebook's SHAP analysis documents model behaviour, but per-lot SHAP explanations
+and probability calibration are intentionally outside the current API contract.
 
 ## License
 

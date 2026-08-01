@@ -1,5 +1,43 @@
 # Release Notes
 
+## v0.2.1: Dual-model provenance (2026-08-02)
+
+This release closes the A1 regression provenance gap without changing either model's
+predictions or any public prediction request/response schema. A2 classification remains
+submission-exact; A1 regression is now explicitly assessment-derived and lineage-locked
+to both its submitted evidence and corrected production adaptation.
+
+### A1 regression lineage
+- Added contract `mln601-a1-derived-v1`, tied to canonical A1 source commit
+  `93b39df59185126c5a40ae6e395a4cdc8d1d50aa`.
+- Pinned submission SHA-256
+  `4db8def424459265b9283eb5d20b0f529a75aa6af3ab4f2530c47d876e46640a`
+  and metrics SHA-256
+  `358f9e6b009a08e9f5eeb4294a36b7338a42648ff0fe29d8c5ae2a176d8bcca2`.
+- Reproduced the submitted 6,497-row final-estimator metrics: R² 0.5002, MAE 0.4364
+  and RMSE 0.6075.
+- Separately locked the production adaptation: remove 1,177 exact duplicates before
+  splitting, model 5,320 rows, and reproduce R² 0.4146, MAE 0.5096 and RMSE 0.6634.
+- Regressor construction, parameters, split, row policy, expected metrics and golden
+  `5.065` prediction now come from the contract instead of test literals.
+
+### Public provenance
+- `/health` preserves the existing A2 `model_contract` and `source_commit` fields, then
+  adds `model_contracts` for regression and classification.
+- `/model/info` exposes `assessment_derived` regression provenance and
+  `submission_exact` classification provenance independently.
+- The Streamlit Model Card visibly compares A1 submitted and production rows and metrics,
+  and explains that deduplication prevents leakage rather than representing a resubmission.
+- FastAPI/OpenAPI metadata now reports version `0.2.1`.
+
+### Compatibility and verification
+- `regressor.joblib`, `classifier.joblib` and `schema.json` remained byte-identical.
+- Score remains `5.065` for the public example wine; grade labels and probabilities are
+  unchanged from v0.2.0.
+- Local verification: 51 tests, 30 focused parity tests and a clean Ruff run.
+- The v0.2.0 statement that A1 was "unchanged" referred to serving artifact stability.
+  It did not mean the deduplicated production metrics were identical to the A1 submission.
+
 ## v0.2.0: A2 v8 approved Random Forest (2026-07-30)
 
 The classification lens now serves the model approved by the MLN601 Assessment 2 v8

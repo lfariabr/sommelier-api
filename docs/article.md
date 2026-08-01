@@ -121,14 +121,17 @@ def predict_endpoint(wine: WineFeatures):
   and if that API is cold, it *falls back to local* automatically and tells you so.
 
 One discipline ties it together: the training scikit-learn version is **pinned**, the
-artifacts are committed, and that same version is surfaced at `/model/info`. The serving
-artifact reproduces the submitted metrics and confusion matrix exactly. Fresh retrains
-keep the same parameters and estimator seeds, with measured tolerances for the small
-numerical variation observed between macOS arm64 and Linux x64.
+artifacts are committed, and that same version is surfaced at `/model/info`. Fresh
+retrains keep the declared parameters and estimator seeds, with measured tolerances for
+the small numerical variation observed between macOS arm64 and Linux x64.
 
-The classifier is provenance-locked under contract `mln601-a2-v8` to assessment source
-commit `c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2`. The API exposes that provenance at
-`/health` and `/model/info` instead of asking readers to trust a model name in prose.
+The two lenses now expose different, explicit provenance guarantees. Classification is
+submission-exact under `mln601-a2-v8`, tied to source commit
+`c5be26cf1bb7cc71f8f057fba45aa5b3ea8dd5b2`. Regression is assessment-derived under
+`mln601-a1-derived-v1`: it reproduces the submitted 6,497-row A1 final-estimator metrics,
+then separately locks the 5,320-row deduplicated production adaptation. A1 was not
+resubmitted under the corrected row policy. `/health`, `/model/info` and the Streamlit
+Model Card make that distinction visible instead of asking readers to trust prose.
 
 ## Try it
 
