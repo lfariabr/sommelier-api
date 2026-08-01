@@ -7,6 +7,9 @@ from ml.predict import load_artifacts
 from ui.model_card import (
     class_weight_rationale,
     classifier_caption,
+    regression_caption,
+    regression_lineage_note,
+    regression_lineage_table,
     v8_vs_v7_tradeoff,
 )
 
@@ -24,7 +27,7 @@ def render() -> None:
     left, right = st.columns(2)
     with left:
         st.subheader("Score · regression")
-        st.caption(reg["model"])
+        st.caption(regression_caption(reg))
         st.metric("R²", f"{reg['r2']:.3f}")
         st.metric("MAE", f"{reg['mae']:.3f}")
         st.metric("RMSE", f"{reg['rmse']:.3f}")
@@ -42,6 +45,9 @@ def render() -> None:
         for name, imp in clf["top_features"]:
             st.write(f"- {name} ({imp:.2f})")
 
+    st.subheader("Regression lineage")
+    st.table(regression_lineage_table(reg))
+    st.info(regression_lineage_note(reg))
     st.info(class_weight_rationale())
     st.warning(v8_vs_v7_tradeoff(clf))
     st.info(

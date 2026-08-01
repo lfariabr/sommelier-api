@@ -4,12 +4,52 @@ from ui.model_card import (
     class_weight_rationale,
     classification_summary,
     classifier_caption,
+    regression_caption,
+    regression_lineage_note,
+    regression_lineage_table,
     v8_vs_v7_tradeoff,
 )
 
 
 def _classification() -> dict:
     return load_artifacts()[3]["classification"]
+
+
+def _regression() -> dict:
+    return load_artifacts()[3]["regression"]
+
+
+def test_regression_copy_declares_derived_lineage():
+    regression = _regression()
+
+    assert regression_caption(regression) == (
+        "RandomForestRegressor | A1-derived production retrain | "
+        "contract mln601-a1-derived-v1"
+    )
+    assert regression_lineage_table(regression) == [
+        {
+            "Protocol": "A1 submitted",
+            "Rows": "6,497",
+            "R²": "0.500",
+            "MAE": "0.436",
+            "RMSE": "0.608",
+        },
+        {
+            "Protocol": "Production serving",
+            "Rows": "5,320",
+            "R²": "0.415",
+            "MAE": "0.510",
+            "RMSE": "0.663",
+        },
+    ]
+
+
+def test_regression_lineage_note_explains_the_metric_change():
+    note = regression_lineage_note(_regression())
+
+    assert "1,177 exact duplicates" in note
+    assert "preventing duplicate leakage" in note
+    assert "not submission-exact" in note
 
 
 def test_current_model_copy_comes_from_artifact_metadata():
